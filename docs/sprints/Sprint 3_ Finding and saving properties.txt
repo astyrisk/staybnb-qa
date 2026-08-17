@@ -1,0 +1,241 @@
+﻿Sprint 3 — Search & Discovery: User Stories
+Sprint Theme: Finding and saving properties Sprint Goal: Users can search with filters, sort results, and save favorite properties. Features Covered: F3.1–F3.6 Total Stories: 11
+________________
+
+
+Story 1 — F3.1-S1: Search Properties by Location
+As a visitor, I want to type a city name into the search bar and submit a search, So that I can find properties available in my desired destination.
+Acceptance Criteria:
+* Given the user is on the home page or any page with the navigation bar, when they click the compact search bar ("Where · When · Guests"), then the search form expands to show Location, Check-in, Check-out, Guests, and Search fields
+* Given the search form is expanded, when the user enters a city name and clicks "Search", then they are navigated to /t/{slug}/properties?city={value} and results are filtered by the entered city (partial match)
+* Given the user enters a city with no matching properties, when they submit the search, then the results page shows an empty state with zero results
+* Given the user is on mobile, when they tap the search icon, then a full-screen search overlay opens with the same fields
+Notes:
+* API: GET /api/t/{slug}/properties?city={value}
+* UI: Compact search bar in the navigation bar; expanded search form on home page replaces the hero section
+* Sprint: 3
+* Dependencies: F1.7 (Property Listing Page)
+________________
+
+
+Story 2 — F3.1-S2: Search Properties by Dates and Guests
+As a visitor, I want to specify check-in and check-out dates and number of guests in the search bar, So that I can find properties that are available for my travel dates and can accommodate my group.
+Acceptance Criteria:
+* Given the search form is expanded, when the user selects a check-in date, then only dates on or after today are selectable
+* Given the user has selected a check-in date, when they select a check-out date, then only dates after the check-in date are selectable
+* Given the user enters a guest count, when they submit the search, then results only include properties where max_guests >= guests
+* Given the user specifies check-in and check-out dates, when they submit the search, then results only include properties that are available (not booked) for the specified date range
+* Given no fields are filled in, when the user clicks "Search", then all published properties are returned (no filters applied)
+Notes:
+* API: GET /api/t/{slug}/properties?checkIn={date}&checkOut={date}&guests={n}
+* UI: Date pickers and guest selector in the expanded search form
+* Sprint: 3
+* Dependencies: F1.7 (Property Listing Page)
+________________
+
+
+Story 3 — F3.2-S1: Filter by Price Range
+As a visitor, I want to filter search results by a minimum and maximum price per night, So that I can find properties within my budget.
+Acceptance Criteria:
+* Given the user is on the property listing page, when they adjust the price range slider to set a min and max price, then results update in real-time to show only properties within that price range
+* Given the user sets minPrice = 50 and maxPrice = 150, when results load, then every displayed property has a pricePerNight between 50 and 150 inclusive
+* Given no properties match the selected price range, when the filter is applied, then the results area shows zero results with an appropriate empty state
+Notes:
+* API: GET /api/t/{slug}/properties?minPrice={n}&maxPrice={n}
+* UI: Price range slider in filter sidebar (desktop) / filter modal (mobile)
+* Sprint: 3
+* Dependencies: F1.7 (Property Listing Page)
+________________
+
+
+Story 4 — F3.2-S2: Filter by Property Type and Category
+As a visitor, I want to filter search results by property type and category, So that I can narrow results to the kind of accommodation I prefer.
+Acceptance Criteria:
+* Given the user is on the property listing page, when they select one or more property type checkboxes (Entire place, Private room, Shared room), then results update in real-time to show only matching property types
+* Given the user selects a category from the category dropdown, when results load, then only properties in that category are displayed
+* Given the user selects a category AND a property type, when results load, then both filters are applied simultaneously (AND logic)
+* Given the user clears all property type and category filters, when results reload, then all properties are shown again
+Notes:
+* API: GET /api/t/{slug}/properties?categoryId={id} (property type filter applied client-side or via query param)
+* UI: Property type checkboxes and category dropdown in filter sidebar/modal
+* Sprint: 3
+* Dependencies: F1.7 (Property Listing Page)
+________________
+
+
+Story 5 — F3.2-S3: Filter by Amenities, Bedrooms, and Bathrooms
+As a visitor, I want to filter search results by specific amenities, minimum bedrooms, and minimum bathrooms, So that I can find properties that meet my specific accommodation needs.
+Acceptance Criteria:
+* Given the user is on the property listing page, when they check one or more amenity checkboxes, then results update to show only properties that have ALL selected amenities
+* Given the user sets a minimum number of bedrooms, when results load, then only properties with at least that many bedrooms are shown
+* Given the user sets a minimum number of bathrooms, when results load, then only properties with at least that many bathrooms are shown
+* Given multiple filter types are applied simultaneously (amenities + bedrooms + bathrooms + price), when results load, then ALL filters are applied together (AND logic)
+* Given the user is on mobile, when they tap a "Filters" button, then a slide-out modal appears with all filter options
+Notes:
+* API: GET /api/t/{slug}/properties?amenities={ids} (comma-separated amenity IDs)
+* UI: Amenities checkboxes, bedrooms selector, bathrooms selector in filter sidebar/modal
+* Sprint: 3
+* Dependencies: F1.7 (Property Listing Page)
+________________
+
+
+Story 6 — F3.3-S1: Sort Search Results
+As a visitor, I want to sort property search results by different criteria, So that I can find the most relevant properties based on my preference.
+Acceptance Criteria:
+* Given the user is on the property listing page, when they open the sort dropdown, then they see four options: "Newest", "Price: low to high", "Price: high to low", "Top rated"
+* Given the user selects "Newest", when results load, then properties are ordered by creation date descending (most recent first)
+* Given the user selects "Price: low to high", when results load, then properties are ordered by pricePerNight ascending
+* Given the user selects "Price: high to low", when results load, then properties are ordered by pricePerNight descending
+* Given the user selects "Top rated", when results load, then properties are ordered by averageRating descending
+* Given the user changes the sort option while filters are active, when results load, then both the active filters and the new sort order are applied together
+Notes:
+* API: GET /api/t/{slug}/properties?sort=price_asc|price_desc|rating_desc|newest
+* UI: Sort dropdown above the results grid on the property listing page
+* Sprint: 3
+* Dependencies: F1.7 (Property Listing Page)
+________________
+
+
+Story 7 — F3.4-S1: Paginate Search Results
+As a visitor, I want search results to be paginated, So that I can browse through large sets of properties without loading everything at once.
+Acceptance Criteria:
+* Given there are more than 20 properties matching the current search/filters, when the results page loads, then only the first 20 properties are displayed
+* Given the user is on page 1 of results, when they click "Next" or a page number, then the next page of results is displayed
+* Given the user is on page 2 or later, when they click "Previous", then the previous page is displayed
+* Given pagination is visible, when results load, then the text "Showing X–Y of Z results" is displayed (e.g., "Showing 1–20 of 87 results")
+* Given the user navigates to a page, when the page loads, then the URL reflects the current page (e.g., ?page=2) for bookmarkability
+* Given the user is on the first page, when pagination controls render, then the "Previous" button is disabled
+* Given the user is on the last page, when pagination controls render, then the "Next" button is disabled
+* Given search filters or sort is changed, when new results load, then pagination resets to page 1
+Notes:
+* API: GET /api/t/{slug}/properties?page={n}&limit=20 — response includes pagination: { page, limit, total, totalPages }
+* UI: Pagination controls at the bottom of the property listing page (Previous, page numbers, Next)
+* Sprint: 3
+* Dependencies: F1.7 (Property Listing Page)
+________________
+
+
+Story 8 — F3.5-S1: Add Property to Wishlist
+As a guest, I want to click the heart icon on a property card or detail page to add it to my wishlist, So that I can save properties I'm interested in for later.
+Acceptance Criteria:
+* Given the user is authenticated and viewing a property card, when they click the outline heart icon, then the property is added to their wishlist and the heart becomes filled
+* Given the user is authenticated and viewing the property detail page, when they click the outline heart icon, then the property is added to their wishlist and the heart becomes filled
+* Given the user is not authenticated, when they click the heart icon, then they are redirected to the login page (or shown a prompt to log in)
+* Given the property is already in the user's wishlist, when the API returns 409, then the heart remains filled and no duplicate is created
+* Given a property does not exist, when the user attempts to favorite it, then the API returns 404
+Notes:
+* API: POST /api/t/{slug}/wishlists — body: { "propertyId": {id} }
+* UI: Heart icon (outline) on property cards and property detail page
+* Sprint: 3
+* Dependencies: F1.7 (Property Listing Page), F1.8 (Property Detail Page)
+________________
+
+
+Story 9 — F3.5-S2: Remove Property from Wishlist
+As a guest, I want to click the filled heart icon to remove a property from my wishlist, So that I can manage my saved properties and remove ones I'm no longer interested in.
+Acceptance Criteria:
+* Given the user is authenticated and a property is in their wishlist, when they click the filled heart icon on the property card, then the property is removed from their wishlist and the heart becomes an outline
+* Given the user is authenticated and a property is in their wishlist, when they click the filled heart icon on the property detail page, then the property is removed from their wishlist and the heart becomes an outline
+* Given the user is on the wishlists page, when they click the filled heart icon on a card, then the property is removed from the wishlist (with confirmation) and the card disappears from the page
+* Given the property is not in the user's wishlist, when the API returns 404, then the heart remains as an outline
+Notes:
+* API: DELETE /api/t/{slug}/wishlists/:propertyId
+* UI: Filled heart icon on property cards, property detail page, and wishlists page
+* Sprint: 3
+* Dependencies: F3.5-S1 (Add Property to Wishlist)
+________________
+
+
+Story 10 — F3.5-S3: View Wishlist Page
+As a guest, I want to view a dedicated page showing all the properties I have favorited, So that I can easily review and compare my saved properties.
+Acceptance Criteria:
+* Given the user is authenticated and has favorited properties, when they navigate to /t/{slug}/wishlists, then all wishlisted properties are displayed as a grid of property cards with filled heart icons
+* Given the user is authenticated and has no favorited properties, when they navigate to /t/{slug}/wishlists, then the page shows an empty state: "You haven't saved any properties yet. Start exploring!"
+* Given the user is not authenticated, when they navigate to /t/{slug}/wishlists, then they are redirected to the login page
+* Given the user removes a property from the wishlist page, when the removal is confirmed, then the card disappears from the grid without a full page reload
+Notes:
+* API: GET /api/t/{slug}/wishlists
+* UI: Wishlists page (/t/{slug}/wishlists) — grid of property cards, same layout as search results
+* Sprint: 3
+* Dependencies: F3.5-S1 (Add Property to Wishlist)
+________________
+
+
+Story 11 — F3.6-S1: Updated Navigation Bar for Sprint 3
+As a visitor, I want the navigation bar to include a search bar and updated menu items, So that I can quickly search for properties and access my wishlists from any page.
+Acceptance Criteria:
+* Given the tenant's active sprint is 3 or higher, when any page loads, then the navigation bar displays a compact search bar in the center showing "Where · When · Guests"
+* Given the user is authenticated and the tenant's active sprint is 3 or higher, when they open the user dropdown menu, then a "Wishlists" menu item is present linking to /t/{slug}/wishlists
+* Given the user clicks the compact search bar, when the form expands, then Location, Check-in, Check-out, Guests, and Search fields are displayed
+* Given the user is on mobile, when the page loads, then the search bar is replaced with a search icon that opens a full-screen search overlay
+Notes:
+* API: N/A (navigation is frontend-only, pulls sprint config from /api/t/{slug}/config)
+* UI: Navigation bar — search bar (center), "Wishlists" link in user dropdown
+* Sprint: 3
+* Dependencies: F1.9 (Navigation Bar)
+________________
+
+
+Summary
+Sprint 3 Total: 11 stories
+#
+	Story ID
+	Feature
+	Title
+	1
+	F3.1-S1
+	F3.1
+	Search Properties by Location
+	2
+	F3.1-S2
+	F3.1
+	Search Properties by Dates and Guests
+	3
+	F3.2-S1
+	F3.2
+	Filter by Price Range
+	4
+	F3.2-S2
+	F3.2
+	Filter by Property Type and Category
+	5
+	F3.2-S3
+	F3.2
+	Filter by Amenities, Bedrooms, and Bathrooms
+	6
+	F3.3-S1
+	F3.3
+	Sort Search Results
+	7
+	F3.4-S1
+	F3.4
+	Paginate Search Results
+	8
+	F3.5-S1
+	F3.5
+	Add Property to Wishlist
+	9
+	F3.5-S2
+	F3.5
+	Remove Property from Wishlist
+	10
+	F3.5-S3
+	F3.5
+	View Wishlist Page
+	11
+	F3.6-S1
+	F3.6
+	Updated Navigation Bar for Sprint 3
+	Features Split into Multiple Stories
+Feature
+	Stories
+	Reason
+	F3.1 — Search Bar
+	F3.1-S1, F3.1-S2
+	Location search vs. date/guest search are distinct user interactions with different acceptance criteria
+	F3.2 — Property Filters
+	F3.2-S1, F3.2-S2, F3.2-S3
+	Three logical filter groups: price, type/category, amenities/rooms — each independently testable
+	F3.5 — Wishlists / Favorites
+	F3.5-S1, F3.5-S2, F3.5-S3
+	Favoriting, unfavoriting, and viewing wishlists page are distinct user interactions with different roles and flows

@@ -1,0 +1,309 @@
+﻿Sprint 2 — Property Management: User Stories
+Sprint Theme: Host functionality — creating and managing property listings Sprint Goal: Users can become hosts, create/edit/delete properties, and upload images. Features Covered: F2.1–F2.9 Total Stories: 14
+________________
+
+
+Story 1 — F2.1: Become a Host
+As a guest, I want to enable hosting on my account, So that I can create and manage property listings on the platform.
+Acceptance Criteria:
+* Given I am logged in and is_host is false, when I click "Become a Host" in the navigation bar or on my profile, then my account is updated with is_host = true via PUT /api/t/{slug}/users/me/host
+* Given I successfully become a host, when the API responds with 200, then the navigation bar updates to show "My Properties" instead of "Become a Host"
+* Given I am already a host (is_host = true), when I view the navigation bar, then I see "My Properties" linking to /t/{slug}/hosting instead of "Become a Host"
+* Given I am not logged in, when I attempt to call PUT /api/t/{slug}/users/me/host, then I receive a 401 error
+* Given I send the request with { "isHost": true }, when the API responds, then the returned user object reflects isHost: true
+Notes:
+* API: PUT /api/t/{slug}/users/me/host
+* UI: "Become a Host" link in navigation bar (right section) and user dropdown menu
+* Sprint: 2
+* Dependencies: F1.2 (User Login), F1.9 (Navigation Bar)
+________________
+
+
+Story 2 — F2.2: Host Dashboard
+As a host, I want to see a dashboard listing all my properties with their status and summary stats, So that I can manage my listings from a central location.
+Acceptance Criteria:
+* Given I am a host, when I navigate to /t/{slug}/hosting, then I see a list of my properties showing: thumbnail image, title, location, price per night, published status (Published/Draft), and rating
+* Given I am a host with properties, when I view the top of the dashboard, then I see summary stats including total properties count
+* Given I am a host, when I view the dashboard, then I see a prominent "Create New Property" button that links to /t/{slug}/hosting/create
+* Given I am a host, when I view each property row, then I see action buttons: Edit, Delete, and Publish/Unpublish toggle
+* Given I am a host with no properties, when I view the dashboard, then I see an empty state message: "You haven't listed any properties yet. Create your first listing!"
+* Given I am a host, when I call GET /api/t/{slug}/hosting/properties, then the response includes both published and unpublished properties owned by me
+* Given I am not a host (is_host = false), when I call GET /api/t/{slug}/hosting/properties, then I receive a 403 error
+* Given I am not logged in, when I call GET /api/t/{slug}/hosting/properties, then I receive a 401 error
+Notes:
+* API: GET /api/t/{slug}/hosting/properties
+* UI: Host dashboard (/t/{slug}/hosting)
+* Sprint: 2
+* Dependencies: F2.1 (Become a Host)
+________________
+
+
+Story 3 — F2.3a: Create Property — Basics, Location & Details (Steps 1–3)
+As a host, I want to enter my property's basic information, location, and capacity details, So that I can begin building a new listing with accurate descriptive information.
+Acceptance Criteria:
+* Given I am a host on /t/{slug}/hosting/create, when Step 1 (Basics) loads, then I see: property type radio buttons ("Entire place", "Private room", "Shared room"), a category dropdown, a title input, and a description textarea
+* Given I am on Step 1, when I leave property type, title, or description empty and click "Next", then I see inline validation errors for each missing required field
+* Given I complete Step 1 and click "Next", when Step 2 (Location) loads, then I see: a country dropdown, a city text input (required), and a street address text input (optional)
+* Given I am on Step 2, when I leave city or country empty and click "Next", then I see inline validation errors for those required fields
+* Given I complete Step 2 and click "Next", when Step 3 (Details) loads, then I see: max guests (number input, min 1), bedrooms (number input, min 0), beds (number input, min 1), and bathrooms (number input, min 0, allows 0.5 increments)
+* Given I am on any step, when I click "Back", then I return to the previous step with my previously entered input preserved
+* Given I am on the create property page, when I view the top of the form, then I see a progress indicator showing my current step out of 7
+* Given I am not a host, when I try to access /t/{slug}/hosting/create, then I am blocked with a 403 error
+Notes:
+* API: POST /api/t/{slug}/properties (final submission happens in Step 7)
+* UI: Create property wizard (/t/{slug}/hosting/create), Steps 1–3
+* Sprint: 2
+* Dependencies: F2.1 (Become a Host), F2.8 (Property Categories), F2.9 (Property Amenities)
+________________
+
+
+Story 4 — F2.3b: Create Property — Amenities Selection (Step 4)
+As a host, I want to select amenities for my property from a predefined list, So that guests know what facilities and features my property offers.
+Acceptance Criteria:
+* Given I am on Step 4 (Amenities), when the step loads, then I see a checkbox grid of all available amenities fetched from GET /api/t/{slug}/amenities
+* Given I view the amenities grid, when I inspect the layout, then amenities are grouped by type: Essentials, Features, and Safety
+* Given I check or uncheck amenities, when I click "Next", then my selections are preserved and I advance to Step 5
+* Given I select no amenities, when I click "Next", then I can still proceed (amenities are optional)
+* Given I click "Back", when I return to Step 3, then my amenity selections remain intact when I return to Step 4
+Notes:
+* API: GET /api/t/{slug}/amenities (fetch list), amenity IDs submitted as amenityIds in final POST /api/t/{slug}/properties
+* UI: Create property wizard (/t/{slug}/hosting/create), Step 4
+* Sprint: 2
+* Dependencies: F2.3a (Steps 1–3), F2.9 (Property Amenities)
+________________
+
+
+Story 5 — F2.3c: Create Property — Image Upload (Step 5)
+As a host, I want to upload and arrange images during property creation, So that guests can see photos of my property before booking.
+Acceptance Criteria:
+* Given I am on Step 5 (Images), when the step loads, then I see an image upload area that supports drag & drop or click-to-browse
+* Given I upload images, when they finish uploading via POST /api/t/{slug}/upload, then I see preview thumbnails of each uploaded image
+* Given I have uploaded images, when I view the preview list, then each image shows a sort handle (for drag-to-reorder) and a delete button
+* Given I have uploaded multiple images, when I view the list, then the first image (sort order 0) is marked as the primary/cover image
+* Given I have not uploaded at least 1 image, when I attempt to click "Next" to proceed to Step 6, then validation prevents me with an error message ("Minimum 1 image required")
+* Given I click "Back", when I return to Step 4, then my uploaded images remain intact when I navigate back to Step 5
+Notes:
+* API: POST /api/t/{slug}/upload (upload individual images), images submitted as images array in final POST /api/t/{slug}/properties
+* UI: Create property wizard (/t/{slug}/hosting/create), Step 5
+* Sprint: 2
+* Dependencies: F2.3b (Step 4), F2.7 (Image Upload & Management)
+________________
+
+
+Story 6 — F2.3d: Create Property — Pricing, Review & Submit (Steps 6–7)
+As a host, I want to set my property's price, review all the details I've entered, and submit my listing, So that my property is created and ready to be published.
+Acceptance Criteria:
+* Given I am on Step 6 (Pricing), when the step loads, then I see a price per night input in USD
+* Given I enter a price of 0 or negative value, when I click "Next", then I see a validation error (price must be greater than 0)
+* Given I complete Step 6 and click "Next", when Step 7 (Review) loads, then I see a summary of all information entered in Steps 1–6: property type, category, title, description, location, capacity, amenities, images, and price
+* Given I am on Step 7, when I click "Create Listing", then the property is created via POST /api/t/{slug}/properties with is_published = false (draft)
+* Given the property is created successfully (status 201), when the response is received, then I see a success message and am redirected to the host dashboard
+* Given I am on Step 7, when I want to change something, then I can click "Go Back" to navigate to previous steps and then return
+* Given I submit with any required field missing (title, description, property type, city, country, price per night, at least 1 image), when the API responds, then I receive a 400 validation error
+* Given I am not a host, when the POST /api/t/{slug}/properties call is made, then I receive a 403 error
+Notes:
+* API: POST /api/t/{slug}/properties (creates the property with all data from Steps 1–6)
+* UI: Create property wizard (/t/{slug}/hosting/create), Steps 6–7
+* Sprint: 2
+* Dependencies: F2.3c (Step 5)
+________________
+
+
+Story 7 — F2.4: Edit Property
+As a host, I want to edit the details of my existing property, So that I can keep my listing accurate and up to date.
+Acceptance Criteria:
+* Given I am the property owner, when I navigate to /t/{slug}/hosting/:id/edit, then I see a single-page form pre-populated with all existing property data (title, description, type, category, location, capacity, amenities, images, price)
+* Given I view the edit form, when I inspect the layout, then all sections are visible on a single page with collapsible sections (unlike the multi-step create wizard)
+* Given I change any field and click "Save Changes", when the API responds to PUT /api/t/{slug}/properties/:id, then the property is updated and I see the updated property data (status 200)
+* Given I clear a required field (e.g., title, description, city, country, price), when I attempt to save, then I see inline validation errors (same rules as creation)
+* Given I am not the property owner, when I attempt to update via PUT /api/t/{slug}/properties/:id, then I receive a 403 error
+* Given the property ID does not exist, when I attempt to edit, then I receive a 404 error
+* Given I am not logged in, when I attempt to access the edit page, then I receive a 401 error
+* Given I view the edit page, when I look at the bottom of the form, then I see a "Delete Property" button (which triggers the delete confirmation modal from F2.5)
+Notes:
+* API: PUT /api/t/{slug}/properties/:id (partial update — all fields optional)
+* UI: Edit property page (/t/{slug}/hosting/:id/edit)
+* Sprint: 2
+* Dependencies: F2.3 (Create Property), F2.5 (Delete Property)
+________________
+
+
+Story 8 — F2.5: Delete Property
+As a host, I want to delete my property listing, So that I can remove listings I no longer want to offer.
+Acceptance Criteria:
+* Given I am the property owner, when I click "Delete" on the edit page or host dashboard, then a confirmation modal appears with the message: "Are you sure? This cannot be undone."
+* Given I confirm deletion in the modal, when the DELETE /api/t/{slug}/properties/:id call returns 200, then the property and all its associated images and amenities are removed
+* Given the deletion succeeds, when I return to the host dashboard, then the deleted property is no longer listed
+* Given I cancel the confirmation modal, when I dismiss it, then no action is taken and the property remains unchanged
+* Given I am not the property owner, when I attempt to delete via DELETE /api/t/{slug}/properties/:id, then I receive a 403 error
+* Given the property ID does not exist, when I attempt to delete, then I receive a 404 error
+* Given I am not logged in, when I attempt to delete, then I receive a 401 error
+Notes:
+* API: DELETE /api/t/{slug}/properties/:id
+* UI: Delete button on edit property page (/t/{slug}/hosting/:id/edit) and host dashboard (/t/{slug}/hosting)
+* Sprint: 2
+* Dependencies: F2.2 (Host Dashboard), F2.4 (Edit Property)
+________________
+
+
+Story 9 — F2.6: Publish / Unpublish Property
+As a host, I want to toggle my property's published status, So that I can control when my listing is visible to guests browsing the platform.
+Acceptance Criteria:
+* Given I am the property owner, when I click the Publish/Unpublish toggle on the host dashboard or edit page, then the property's is_published status is toggled via PUT /api/t/{slug}/properties/:id/publish
+* Given my property is unpublished (draft), when a visitor or guest browses /t/{slug}/properties or the home page, then my property does NOT appear in the results
+* Given my property is unpublished, when I view my host dashboard (GET /api/t/{slug}/hosting/properties), then my property still appears with a "Draft" status badge
+* Given my property is published, when a visitor or guest browses the listings, then my property appears in the results
+* Given I publish a property, when the API responds with 200, then the property object shows isPublished: true
+* Given I am not the property owner, when I attempt to change publish status via PUT /api/t/{slug}/properties/:id/publish, then I receive a 403 error
+* Given the property ID does not exist, when I attempt to change publish status, then I receive a 404 error
+* Given I am not logged in, when I attempt to change publish status, then I receive a 401 error
+Notes:
+* API: PUT /api/t/{slug}/properties/:id/publish with body { "isPublished": true } or { "isPublished": false }
+* UI: Toggle switch on host dashboard (/t/{slug}/hosting) and edit property page (/t/{slug}/hosting/:id/edit)
+* Sprint: 2
+* Dependencies: F2.2 (Host Dashboard), F2.3 (Create Property)
+________________
+
+
+Story 10 — F2.7a: Image Upload
+As a host, I want to upload images for my property with format and size validation, So that my listing has high-quality photos in supported formats.
+Acceptance Criteria:
+* Given I am a host, when I upload an image file in JPEG, PNG, or WebP format, then the upload succeeds via POST /api/t/{slug}/upload and I receive the image URL in the response
+* Given I attempt to upload a file in an unsupported format (e.g., GIF, BMP, SVG), when the API responds, then I receive a 400 error indicating an invalid file type
+* Given I submit an upload request with no file attached, when the API responds, then I receive a 400 error
+* Given my property already has 10 images, when I attempt to upload another, then I am prevented from adding more (10-image limit per property)
+* Given I am not logged in, when I attempt to upload, then I receive a 401 error
+* Given the upload succeeds, when I inspect the response, then it contains a url field with the path to the uploaded image (e.g., /uploads/t/{slug}/abc123.jpg)
+Notes:
+* API: POST /api/t/{slug}/upload (multipart/form-data with field image)
+* UI: Image upload component used in create property (Step 5) and edit property forms
+* Sprint: 2
+* Dependencies: None
+________________
+
+
+Story 11 — F2.7b: Image Reorder & Deletion
+As a host, I want to reorder and delete images on my property listing, So that I can present my photos in the best order and remove unwanted images.
+Acceptance Criteria:
+* Given I have multiple images on my property, when I drag and drop an image to a new position, then the sort_order values are updated accordingly
+* Given I reorder images, when the first image (sort order 0) changes, then the new first image becomes the primary/cover image displayed on property cards
+* Given I have an image in the list, when I click the delete button on that image, then the image is removed from the property
+* Given I delete the primary image (sort order 0), when the deletion completes, then the next image in order becomes the new primary image
+* Given I have only 1 image and attempt to delete it, when creating a property, then I am warned that at least 1 image is required
+Notes:
+* API: Image ordering and deletion managed through PUT /api/t/{slug}/properties/:id (updating the images array)
+* UI: Image management section in create property (Step 5) and edit property forms; drag handles and delete buttons on image previews
+* Sprint: 2
+* Dependencies: F2.7a (Image Upload)
+________________
+
+
+Story 12 — F2.8: Property Categories
+As a visitor or logged-in user, I want to browse properties by category, So that I can find the type of accommodation I'm looking for.
+Acceptance Criteria:
+* Given I am on the home page (/t/{slug}/), when I view the category bar, then I see a horizontal scrollable row of category icons (Apartment, House, Villa, Cabin, Loft, Studio, etc.)
+* Given I click a category in the category bar, when the filter is applied, then only properties matching that category are displayed in the property grid
+* Given I call GET /api/t/{slug}/categories, when the API responds, then I receive a list of all categories with id, name, and icon fields
+* Given I view a property card on the listing or home page, when I inspect the card, then the property's category is displayed
+* Given I view a property detail page, when I check the property info section, then the category is displayed alongside the property type (e.g., "Entire place · Apartment")
+* Given I am a host creating or editing a property, when I see the category field, then I can select from a dropdown populated by the categories API
+Notes:
+* API: GET /api/t/{slug}/categories
+* UI: Category bar on home page (/t/{slug}/), category dropdown in create/edit property forms, category badge on property cards and detail pages
+* Sprint: 2
+* Dependencies: F1.6 (Home Page — category bar introduced as static in Sprint 1)
+________________
+
+
+Story 13 — F2.9a: Property Amenities — Host Selection
+As a host, I want to select amenities for my property from a predefined, grouped list, So that I can accurately describe what my property offers.
+Acceptance Criteria:
+* Given I call GET /api/t/{slug}/amenities, when the API responds, then I receive a list of all available amenities with id, name, and icon fields
+* Given I am creating a property (Step 4) or editing a property, when I view the amenities section, then I see a checkbox grid of all amenities grouped by type: Essentials, Features, and Safety
+* Given I select amenities and submit the property, when the POST or PUT call includes my amenityIds array, then those amenities are associated with my property
+* Given I edit my property, when I view the amenities section, then previously selected amenities are pre-checked
+* Given I deselect an amenity and save, when I reload the property, then the deselected amenity is no longer associated with the property
+Notes:
+* API: GET /api/t/{slug}/amenities (fetch list), amenityIds field in POST /api/t/{slug}/properties and PUT /api/t/{slug}/properties/:id
+* UI: Checkbox grid in create property Step 4 and edit property amenities section
+* Sprint: 2
+* Dependencies: F2.3b (Create Property — Amenities Step), F2.4 (Edit Property)
+________________
+
+
+Story 14 — F2.9b: Property Amenities — Guest Display
+As a visitor or logged-in user, I want to see a property's amenities displayed with icons and grouped by type, So that I can evaluate what facilities are available before booking.
+Acceptance Criteria:
+* Given I view a property detail page, when I look at the amenities section, then I see amenities displayed as a grid of icons with text labels
+* Given the property has more than 8 amenities, when I view the amenities section, then I see a "Show all {N} amenities" button
+* Given I click "Show all {N} amenities", when the modal opens, then I see all amenities for the property, grouped by type (Essentials, Features, Safety)
+* Given the property has 8 or fewer amenities, when I view the amenities section, then all amenities are visible without needing to open a modal
+* Given the property has no amenities, when I view the amenities section, then the section is either hidden or displays an appropriate empty state
+Notes:
+* API: Amenities included in GET /api/t/{slug}/properties/:id response (amenities array)
+* UI: Amenities section on property detail page (/t/{slug}/properties/:id)
+* Sprint: 2
+* Dependencies: F1.8a (Property Detail Page — Information)
+________________
+
+
+Summary
+Sprint 2 Total: 14 stories
+#
+	Feature
+	Story Title
+	1
+	F2.1
+	Become a Host
+	2
+	F2.2
+	Host Dashboard
+	3
+	F2.3a
+	Create Property — Basics, Location & Details (Steps 1–3)
+	4
+	F2.3b
+	Create Property — Amenities Selection (Step 4)
+	5
+	F2.3c
+	Create Property — Image Upload (Step 5)
+	6
+	F2.3d
+	Create Property — Pricing, Review & Submit (Steps 6–7)
+	7
+	F2.4
+	Edit Property
+	8
+	F2.5
+	Delete Property
+	9
+	F2.6
+	Publish / Unpublish Property
+	10
+	F2.7a
+	Image Upload
+	11
+	F2.7b
+	Image Reorder & Deletion
+	12
+	F2.8
+	Property Categories
+	13
+	F2.9a
+	Property Amenities — Host Selection
+	14
+	F2.9b
+	Property Amenities — Guest Display
+	Features Split into Multiple Stories
+Feature
+	Stories
+	Reason
+	F2.3 — Create Property
+	4 stories (3–6)
+	The 7-step creation wizard covers distinct interaction types: Steps 1–3 are standard form fields (text, dropdowns, numbers); Step 4 is amenity checkbox selection; Step 5 is image upload with drag-and-drop and reordering; Steps 6–7 are pricing input plus a read-only review summary and final submission. Each slice represents a different user interaction pattern and can be independently tested.
+	F2.7 — Image Upload
+	2 stories (10–11)
+	Uploading images (format validation, file handling, API integration) is a distinct capability from managing existing images (drag-and-drop reorder, deletion, primary image designation). Splitting separates the upload mechanism from the arrangement/curation behavior.
+	F2.9 — Property Amenities
+	2 stories (13–14)
+	Selecting amenities as a host (checkbox grid, grouped by type, persisting selections) is a different interaction and role from viewing amenities as a guest (icon grid display, "Show all" modal, grouped layout). These serve different user roles with different acceptance criteria.

@@ -1,0 +1,81 @@
+// Jenkinsfile — ts-playwright framework (Sprints 4-5).
+//
+// Run as a Multibranch Pipeline with "Script Path" set to
+// `frameworks/ts-playwright/Jenkinsfile`. It is independent of the
+// java-selenium pipeline (no shared runtime code), mirroring the path-filtered
+// GitHub Actions workflow in `.github/workflows/ts-playwright.yml`.
+//
+// Agent requirements:
+//   - Node.js 20+  (tool name: 'Node-20', auto-installed via the NodeJS plugin)
+//   - Playwright OS deps: `npx playwright install --with-deps chromium`
+//     installs both the browser and OS libraries. `--with-deps` runs the
+//     system package manager, so the agent user needs sudo/apt access, OR the
+//     deps must be preinstalled on the agent image (then drop `--with-deps`).
+//
+// Required Jenkins credentials (Manage Jenkins → Credentials, type: Secret text):
+//   staybnb-ts-base-url            → BASE_URL
+//   staybnb-ts-api-base-url        → API_BASE_URL
+//   staybnb-ts-api-key             → API_KEY
+//   staybnb-ts-host-user-email     → HOST_USER_EMAIL
+//   staybnb-ts-host-user-password  → HOST_USER_PASSWORD
+//   staybnb-ts-guest-user-email    → GUEST_USER_EMAIL
+//   staybnb-ts-guest-user-password → GUEST_USER_PASSWORD
+
+pipeline {
+    agent any
+
+    tools {
+        nodejs 'Node-20'
+    }
+
+    options {
+        timestamps()
+        timeout(time: 30, unit: 'MINUTES')
+        disableConcurrentBuilds()
+    }
+
+    // Playwright's playwright.config.ts reads process.env.CI to enable retries
+    // and forbidOnly; mirror what the GitHub Actions runner sets automatically.
+    environment {
+        CI = '1'
+    }
+
+    stages {
+        stage('Setup') {
+            steps {
+                dir('frameworks/ts-playwright') {
+                    sh 'npm ci'
+                    sh 'npx playwright install --with-deps chromium'
+                }
+            }
+        }
+
+        stage('Run tests') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'staybnb-ts-base-url',            variable: 'BASE_URL'),
+                    string(credentialsId: 'staybnb-ts-api-base-url',        variable: 'API_BASE_URL'),
+                    string(credentialsId: 'staybnb-ts-api-key',             variable: 'API_KEY'),
+                    string(credentialsId: 'staybnb-ts-host-user-email',     variable: 'HOST_USER_EMAIL'),
+                    string(credentialsId: 'staybnb-ts-host-user-password',  variable: 'HOST_USER_PASSWORD'),
+                    string(credentialsId: 'staybnb-ts-guest-user-email',    variable: 'GUEST_USER_EMAIL'),
+                    string(credentialsId: 'staybnb-ts-guest-user-password', variable: 'GUEST_USER_PASSWORD')
+                ]) {
+                    dir('frameworks/ts-playwright') {
+                        sh 'npx playwright test'
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'frameworks/ts-playwright/playwright-report/**',
+                             allowEmptyArchive: true
+            archiveArtifacts artifacts: 'frameworks/ts-playwright/test-results/**',
+                             allowEmptyArchive: true
+            deleteDir()
+        }
+    }
+}

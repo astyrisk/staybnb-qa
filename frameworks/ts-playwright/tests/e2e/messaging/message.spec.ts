@@ -1,4 +1,4 @@
-import {guestAuthFile, test, screenshotSelector } from "../../../fixtures";
+import {guestAuthFile, test} from "../../../fixtures";
 import {getUnqiueMessage} from "../../../support/data/messages";
 
 test.describe('contact host in property details', () => {

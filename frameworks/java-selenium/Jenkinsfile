@@ -1,35 +1,83 @@
+// Jenkinsfile — java-selenium framework (Sprints 1-3).
+//
+// Run as a Multibranch Pipeline with "Script Path" set to
+// `frameworks/java-selenium/Jenkinsfile`. It is independent of the
+// ts-playwright pipeline (no shared runtime code), mirroring the path-filtered
+// GitHub Actions workflow in `.github/workflows/java-selenium.yml`.
+//
+// Agent requirements (auto-installed via Jenkins Global Tool Configuration
+// when the tools below are configured with installers):
+//   - JDK 21         (tool name: 'jdk-21')
+//   - Maven 3.9+     (tool name: 'maven3')
+//   - Google Chrome  (latest stable; Selenium 4 manages ChromeDriver).
+//     The repo's `Dockerfile` builds a Jenkins image with Chrome preinstalled
+//     for single-node (controller-as-agent) setups.
+//
+// Allure Commandline must also be configured in Global Tool Configuration for
+// the post-build report step.
+//
+// Required Jenkins credentials (Manage Jenkins → Credentials, type: Secret text):
+//   staybnb-test-user-email            → TEST_USER_EMAIL
+//   staybnb-test-password              → TEST_PASSWORD
+//   staybnb-test-first-name            → TEST_FIRST_NAME
+//   staybnb-test-last-name             → TEST_LAST_NAME
+//   staybnb-non-host-user-email        → NON_HOST_TEST_USER_EMAIL
+//   staybnb-non-host-password          → NON_HOST_TEST_PASSWORD
+//   staybnb-default-property-id        → TEST_DEFAULT_PROPERTY_ID
+//   staybnb-one-booked-property-id     → TEST_ONE_BOOKED_PROPERTY_ID
+//   staybnb-zero-booked-property-id    → TEST_ZERO_BOOKED_PROPERTY_ID
+//   staybnb-to-book-property-id        → TEST_TO_BOOK_PROPERTY_ID
+//   staybnb-notify-book-property-id    → TEST_NOTIFY_BOOK_PROPERTY_ID
+//   staybnb-few-amenities-property-id  → TEST_PROPERTY_FEW_AMENITIES_ID
+//   staybnb-no-amenities-property-id   → TEST_PROPERTY_NO_AMENITIES_ID
+//   staybnb-single-guest-property-id   → TEST_PROPERTY_SINGLE_GUEST_ID
+//   staybnb-other-user-id-1            → TEST_OTHER_USER_ID_1
 
-// Jenkinsfile
 pipeline {
     agent any
 
-    // Tell Jenkins to load the Maven tool we just configured
     tools {
+        jdk   'jdk-21'
         maven 'maven3'
+    }
+
+    options {
+        timestamps()
+        timeout(time: 30, unit: 'MINUTES')
+        disableConcurrentBuilds()
     }
 
     parameters {
         string(
             name: 'TEST_BASE_URL',
-            defaultValue: 'https://qa-playground.nixdev.co/t/automation-adel',
-            description: 'Base URL for tests'
+            defaultValue: 'https://qa-playground.nixdev.co/t/<your-tenant-slug>',
+            description: 'Base URL (incl. tenant slug) of the StayBnB QA tenant under test'
         )
     }
 
     stages {
-        stage('Run Tests') {
+        stage('Run tests') {
             steps {
                 withCredentials([
-                    string(credentialsId: 'staybnb-test-user', variable: 'TEST_USER'),
-                    string(credentialsId: 'staybnb-test-password', variable: 'TEST_PASSWORD')
+                    string(credentialsId: 'staybnb-test-user-email',           variable: 'TEST_USER_EMAIL'),
+                    string(credentialsId: 'staybnb-test-password',             variable: 'TEST_PASSWORD'),
+                    string(credentialsId: 'staybnb-test-first-name',           variable: 'TEST_FIRST_NAME'),
+                    string(credentialsId: 'staybnb-test-last-name',            variable: 'TEST_LAST_NAME'),
+                    string(credentialsId: 'staybnb-non-host-user-email',       variable: 'NON_HOST_TEST_USER_EMAIL'),
+                    string(credentialsId: 'staybnb-non-host-password',         variable: 'NON_HOST_TEST_PASSWORD'),
+                    string(credentialsId: 'staybnb-default-property-id',       variable: 'TEST_DEFAULT_PROPERTY_ID'),
+                    string(credentialsId: 'staybnb-one-booked-property-id',    variable: 'TEST_ONE_BOOKED_PROPERTY_ID'),
+                    string(credentialsId: 'staybnb-zero-booked-property-id',   variable: 'TEST_ZERO_BOOKED_PROPERTY_ID'),
+                    string(credentialsId: 'staybnb-to-book-property-id',       variable: 'TEST_TO_BOOK_PROPERTY_ID'),
+                    string(credentialsId: 'staybnb-notify-book-property-id',   variable: 'TEST_NOTIFY_BOOK_PROPERTY_ID'),
+                    string(credentialsId: 'staybnb-few-amenities-property-id', variable: 'TEST_PROPERTY_FEW_AMENITIES_ID'),
+                    string(credentialsId: 'staybnb-no-amenities-property-id',  variable: 'TEST_PROPERTY_NO_AMENITIES_ID'),
+                    string(credentialsId: 'staybnb-single-guest-property-id',  variable: 'TEST_PROPERTY_SINGLE_GUEST_ID'),
+                    string(credentialsId: 'staybnb-other-user-id-1',           variable: 'TEST_OTHER_USER_ID_1')
                 ]) {
-                    sh """
-                        mvn clean test \\
-                          -Dheadless=true \\
-                          -DTEST_BASE_URL="${params.TEST_BASE_URL}" \\
-                          -DTEST_USER="\$TEST_USER" \\
-                          -DTEST_PASSWORD="\$TEST_PASSWORD"
-                    """
+                    dir('frameworks/java-selenium') {
+                        sh "mvn -B clean test -Dheadless=true -DTEST_BASE_URL=\"${params.TEST_BASE_URL}\""
+                    }
                 }
             }
         }
@@ -37,7 +85,12 @@ pipeline {
 
     post {
         always {
-            junit 'target/surefire-reports/*.xml'
+            junit testResults: 'frameworks/java-selenium/target/surefire-reports/*.xml',
+                  allowEmptyResults: true
+            archiveArtifacts artifacts: 'frameworks/java-selenium/target/screenshots/**',
+                             allowEmptyArchive: true
+            allure results: [[path: 'frameworks/java-selenium/target/allure-results']]
+            deleteDir()
         }
     }
 }

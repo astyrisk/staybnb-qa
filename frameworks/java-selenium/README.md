@@ -1,12 +1,16 @@
 # java-selenium
 
-Sprint 1–3 end-to-end test automation for the StayBnB platform, using Java 21,
+Sprint 1–3 end-to-end test automation for the StayBnB platform — Java 21,
 Selenium WebDriver 4, JUnit 5, REST Assured, and Allure.
 
-> This is one of two frameworks in the `staybnb-qa` monorepo. The other
+> One of two independent frameworks in the `staybnb-qa` monorepo. The other
 > (`frameworks/ts-playwright/`) covers Sprints 4–5. See the root
-> [`README.md`](../../README.md) and [`AGENTS.md`](../../AGENTS.md) for the
-> unified overview.
+> [`README.md`](../../README.md) for the unified overview and coverage matrix.
+
+- **Deep dive** (architecture, full env reference, CI secrets, reporting):
+  [`docs/JAVA_SELENIUM.md`](../../docs/JAVA_SELENIUM.md)
+- **First-time setup** (both frameworks): [`docs/SETUP.md`](../../docs/SETUP.md)
+- **Architecture overview** (both frameworks): [`docs/OVERVIEW.md`](../../docs/OVERVIEW.md)
 
 ## Prerequisites
 
@@ -17,14 +21,14 @@ Selenium WebDriver 4, JUnit 5, REST Assured, and Allure.
 ## Quick start
 
 ```bash
-cp .env.example .env          # then fill in credentials (see DOCUMENTATION.md)
+cp .env.example .env          # then fill in credentials (see docs/SETUP.md)
 mvn clean test                           # all tests, headed
 mvn clean test -Dheadless=true           # headless (auto-enabled in CI)
 mvn clean test -Dtest=LoginTest          # single class
 mvn clean test -Dtest=LoginTest#testSuccessfulLoginRedirection   # single method
 mvn clean test -Dgroups=smoke,api        # by tag
 mvn clean compile                        # compile only
-mvn allure:serve                        # generate + open Allure report
+mvn allure:serve                         # generate + open Allure report
 ```
 
 ## Environment
@@ -39,9 +43,10 @@ TEST_FIRST_NAME=<first>
 TEST_LAST_NAME=<last>
 ```
 
-Plus non-host credentials, property IDs, and another user ID — see
-[DOCUMENTATION.md](DOCUMENTATION.md) for the full variable reference and CI
-secrets.
+Plus non-host credentials, eight property IDs, and another user ID — see
+[`docs/JAVA_SELENIUM.md`](../../docs/JAVA_SELENIUM.md) § Variable Reference for
+the full list and [`docs/SETUP.md`](../../docs/SETUP.md) § CI/CD for the GitHub
+Actions secret names.
 
 Config priority: System Properties (`-D`) → `.env` → Environment Variables.
 All values flow through `TestConfig`; never hardcode.
@@ -55,35 +60,36 @@ All values flow through `TestConfig`; never hardcode.
 | `api` | REST API validation |
 | `mobile` | Mobile viewport checks |
 
-## Architecture
+## Architecture (at a glance)
 
-| Layer | Location | Responsibility |
-|---|---|---|
-| Tests | `src/test/java/com/staybnb/tests/{ui,api}/` | Business logic + assertions only |
-| Pages | `src/main/java/com/staybnb/pages/` | All Selenium interactions (fluent) |
-| Components | `src/main/java/com/staybnb/components/` | Reusable UI fragments |
-| Locators | `src/main/java/com/staybnb/locators/Locators.java` | Centralized `By` selectors |
-| Config | `src/main/java/com/staybnb/config/` | Env, URLs, timeouts, `DriverFactory` |
-| Extensions | `src/test/java/com/staybnb/extensions/` | Screenshot capture, test retry |
-| Data | `src/test/java/com/staybnb/data/` | `PropertyPayloads`, `MediaPaths` |
+```
+Tests (ui/, api/)        →  Page Objects (fluent)  →  Components  →  Core/Config
+                                                         (SeleniumBase, DriverFactory,
+                                                          Locators.java, TestConfig)
+```
 
-Key patterns:
-- `DriverFactory` uses `ThreadLocal<WebDriver>` for parallel safety.
-- `BaseTest` auto-detects CI (GitHub Actions / Jenkins) and enables headless Chrome.
-- `media/` is co-located here so `MediaPaths` relative paths resolve from the project root.
-- All waits live in page classes via `WebDriverWait` — no `Thread.sleep()`.
-- One assertion per test; multi-condition UI checks use `assertAll()`.
-- Extension order: `AllureJunit5` → `ScreenshotOnFailureExtension` → `RetryExtension`.
+Key points: `DriverFactory` is `ThreadLocal<WebDriver>` (parallel-safe);
+`BaseTest` auto-detects CI and enables headless Chrome; all `By` selectors
+live in `Locators.java`; test images live in `../../shared/test-data/media/apts/`
+(`MediaPaths` resolves them from the Maven project root via `user.dir`).
+
+Full layer diagram, project tree, and design patterns:
+[`docs/JAVA_SELENIUM.md`](../../docs/JAVA_SELENIUM.md) § Architecture.
 
 ## CI
 
 `.github/workflows/java-selenium.yml` runs `mvn -B clean test -Dheadless=true`
-whenever something under `frameworks/java-selenium/**` changes. Required secrets
-are listed in [DOCUMENTATION.md](DOCUMENTATION.md) § CI Secrets.
+whenever something under `frameworks/java-selenium/**` changes. Required
+secrets are listed in [`docs/JAVA_SELENIUM.md`](../../docs/JAVA_SELENIUM.md)
+§ Required GitHub Secrets.
 
-## Documentation
+A Jenkins pipeline is also provided at [`Jenkinsfile`](Jenkinsfile) — run it
+as a Multibranch Pipeline with Script Path `frameworks/java-selenium/Jenkinsfile`.
+Required Jenkins credentials (Secret text, namespaced `staybnb-*`) and tool
+names are documented in the `Jenkinsfile` header comment.
 
-- [DOCUMENTATION.md](DOCUMENTATION.md) — full setup, env reference, architecture, CI secrets
-- [../../docs/TEST_COVERAGE.md](../../docs/TEST_COVERAGE.md) — feature-by-feature coverage matrix
-- [../../docs/DEFECTS.md](../../docs/DEFECTS.md) — defect catalogue
-- [../../docs/adr/](../../docs/adr/) — Architecture Decision Records
+## Further reading
+
+- [`docs/All-Tests.md`](../../docs/All-Tests.md) — cross-framework test index (every implemented test, both frameworks)
+- [`docs/DEFECTS.md`](../../docs/DEFECTS.md) — defect catalogue
+- [`docs/BOOKING_LOGIC.md`](../../docs/BOOKING_LOGIC.md) — booking test logic reference (cross-framework)

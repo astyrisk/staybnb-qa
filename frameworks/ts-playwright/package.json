@@ -1,8 +1,7 @@
 {
-  "name": "staybnb",
+  "name": "staybnb-ts-playwright",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "StayBnB - TypeScript/Playwright E2E + API tests (Sprints 4-5: bookings, reviews, messaging, notifications)",
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",

@@ -1,4 +1,4 @@
-import { apiTest as test, expect } from '../../../fixtures';
+import { apiTest as test } from '../../../fixtures';
 import { env } from '../../../support/env';
 import { validUser } from '../../../support/data/users';
 

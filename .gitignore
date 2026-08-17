@@ -18,8 +18,11 @@ bin/
 .vscode/*
 !.vscode/settings.json
 
-# Claude / opencode agent runtime caches
+# Local tooling / runtime caches
 .claude/
+tools/
+AGENTS.md
+MIGRATION.md
 
 # ─── Java / Maven ─────────────────────────────────────────────
 target/
@@ -58,6 +61,9 @@ playwright/.auth/*
 allure-results/
 allure-report/
 Test Results - *.html
+
+# Generated CSVs (regenerable via tools/ExtractAllTests.java)
+docs/*.csv
 
 # ─── Runtime artifacts (failure screenshots, traces) ──────────
 **/screenshots/failure-*.png

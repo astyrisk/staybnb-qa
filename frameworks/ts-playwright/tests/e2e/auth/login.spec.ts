@@ -1,6 +1,5 @@
 import {expect, test, screenshotSelector} from "../../../fixtures";
 import {env} from "../../../support/env";
-import {LoginPage} from "../../../pages/auth/login.page";
 import {NavbarComponent} from "../../../pages/components/navbar.component";
 import {getStoredToken, restoreSession, saveSession} from "../../../utils/session";
 import {EXPIRED_TOKEN} from "../../../support/data/tokens";

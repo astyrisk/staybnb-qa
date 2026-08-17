@@ -1,0 +1,350 @@
+﻿Sprint 5 — Communication & Reviews: User Stories
+Sprint Theme: Social features — reviews, messaging, notifications Sprint Goal: Users can review properties, message hosts/guests, and receive notifications. Features Covered: F5.1–F5.9 Total Stories: 17
+________________
+
+
+Story 1 — F5.1: Guest Submits a Review for a Completed Booking
+As a guest, I want to write a star rating and optional comment for a property after my booking is completed, So that I can share my experience with future guests.
+Acceptance Criteria:
+* Given a guest with a booking in COMPLETED status, when they view the booking detail page, then a "Write a Review" button is visible
+* Given the guest clicks "Write a Review", when they select a rating between 1 and 5 stars and optionally enter a comment, then the review is submitted successfully and a 201 response is returned
+* Given the guest submits a review, when the review is created, then reviewType is set to GUEST_TO_PROPERTY
+* Given the guest does not select a star rating, when they attempt to submit, then a validation error is displayed (rating is required)
+* Given the rating value is outside the range 1–5, when the form is submitted, then a 400 validation error is returned
+* Given the guest has already reviewed this booking, when they attempt to submit another review, then a 409 conflict error is returned
+* Given a booking that is not in COMPLETED status, when the guest attempts to write a review, then the "Write a Review" button is not shown
+* Given a user who is not the guest on the booking, when they attempt to submit a review for that booking, then a 403 error is returned
+Notes:
+* API: POST /api/t/{slug}/reviews — body: { bookingId, rating, comment, reviewType: "GUEST_TO_PROPERTY" }
+* UI: Review form on booking detail page (/t/{slug}/bookings/:id)
+* Sprint: 5
+* Dependencies: F4.4 (My Bookings), F4.3 (Booking Creation)
+________________
+
+
+Story 2 — F5.2: Host Submits a Review for a Guest After a Completed Booking
+As a host, I want to write a star rating and optional comment about a guest after their booking is completed, So that other hosts can see feedback about the guest before accepting bookings.
+Acceptance Criteria:
+* Given a host whose property had a booking in COMPLETED status, when they view the host booking detail, then a "Review Guest" option is available
+* Given the host selects a rating between 1 and 5 stars and optionally enters a comment, when they submit the review, then the review is created with reviewType set to HOST_TO_GUEST
+* Given the host does not select a star rating, when they attempt to submit, then a validation error is displayed (rating is required)
+* Given the host has already reviewed this guest for this booking, when they attempt to submit another review, then a 409 conflict error is returned
+* Given a user who is not the host of the booked property, when they attempt to submit a HOST_TO_GUEST review, then a 403 error is returned
+* Given a booking that is not in COMPLETED status, when the host views the booking detail, then the review option is not available
+Notes:
+* API: POST /api/t/{slug}/reviews — body: { bookingId, rating, comment, reviewType: "HOST_TO_GUEST" }
+* UI: Review form on host booking detail page (/t/{slug}/hosting/bookings)
+* Sprint: 5
+* Dependencies: F4.7 (Host Booking Management)
+________________
+
+
+Story 3 — F5.3: Visitor Views Reviews on a Property Detail Page
+As a visitor, I want to see ratings and reviews on a property detail page, So that I can evaluate the quality of a property before booking.
+Acceptance Criteria:
+* Given a property with reviews, when a visitor views the property detail page, then a reviews section is displayed showing the average rating as a large number with a star icon
+* Given a property with reviews, when the reviews section is visible, then a rating distribution bar chart is shown (5 stars down to 1 star) with counts for each level
+* Given a property with reviews, when the reviews section is visible, then individual review cards are shown with: reviewer name, avatar, date, rating stars, and comment text
+* Given a property with more than 10 reviews, when the reviews section loads, then reviews are paginated at 10 per page with pagination controls
+* Given a property with no reviews, when the reviews section loads, then an appropriate empty state is displayed
+* Given the reviews section is displayed, when the user selects a sort option, then reviews can be sorted by newest, highest rating, or lowest rating
+Notes:
+* API: GET /api/t/{slug}/properties/:id/reviews — query params: page, limit, sort (newest|highest|lowest)
+* UI: Reviews section on property detail page (/t/{slug}/properties/:id)
+* Sprint: 5
+* Dependencies: F1.8 (Property Detail Page)
+________________
+
+
+Story 4 — F5.3: Guest Views Review Summary Statistics for a Property
+As a guest, I want to see the overall rating summary for a property, So that I can quickly assess the property's quality at a glance.
+Acceptance Criteria:
+* Given a property with reviews, when the reviews API response is returned, then it includes a summary object with averageRating, totalReviews, and ratingDistribution
+* Given the ratingDistribution object, when rendered, then it shows a bar for each star level (1–5) with the count of reviews at that level
+* Given a property with no reviews, when the summary is displayed, then the average rating shows 0 or "No reviews yet" and the distribution bars are all empty
+Notes:
+* API: GET /api/t/{slug}/properties/:id/reviews — response includes summary field
+* UI: Rating summary section above individual review cards on property detail page
+* Sprint: 5
+* Dependencies: F5.3 (Story 3)
+________________
+
+
+Story 5 — F5.4: Visitor Views Reviews About a User on Their Profile
+As a visitor, I want to see host-to-guest reviews on a user's public profile, So that I can assess a guest's reputation based on host feedback.
+Acceptance Criteria:
+* Given a user profile page, when the user has HOST_TO_GUEST reviews, then a reviews section is displayed with review cards (reviewer name, avatar, date, rating stars, comment)
+* Given a user with no HOST_TO_GUEST reviews, when their profile is viewed, then the reviews section shows an empty state message
+* Given the reviews are listed, when rendered, then the review card layout matches the property review card layout
+* Given a user who does not exist, when their profile is requested, then a 404 error is returned
+Notes:
+* API: GET /api/t/{slug}/users/:id/reviews
+* UI: Reviews section on user profile page (/t/{slug}/users/:id or /t/{slug}/profile)
+* Sprint: 5
+* Dependencies: F1.4 (User Profile View)
+________________
+
+
+Story 6 — F5.5: Guest Sends a Message to a Host from the Property Detail Page
+As a guest, I want to send a message to a property's host from the property detail page, So that I can ask questions about the property before booking.
+Acceptance Criteria:
+* Given a logged-in guest viewing a property detail page, when they click the "Contact Host" button, then a message composer modal or inline form opens
+* Given the message composer is open, when the guest types a message and clicks send, then the message is sent via the API and a 201 response is returned
+* Given the message is sent, when the API processes it, then the message is linked to the property (propertyId) and the host (receiverId)
+* Given the guest submits an empty message, when the form is validated, then a validation error is displayed (content is required)
+* Given the guest is not logged in, when they click "Contact Host", then they are prompted to log in
+* Given the guest attempts to message themselves, when the API processes the request, then a 400 error is returned
+Notes:
+* API: POST /api/t/{slug}/messages — body: { receiverId, propertyId, content }
+* UI: "Contact Host" button on property detail page (/t/{slug}/properties/:id), opens message composer
+* Sprint: 5
+* Dependencies: F1.8 (Property Detail Page)
+________________
+
+
+Story 7 — F5.5: Guest Sends a Message Within an Existing Conversation
+As a guest, I want to reply to a message in an existing conversation, So that I can continue communicating with the host.
+Acceptance Criteria:
+* Given a guest viewing a message thread, when they type a message in the input field and click send, then the message is sent and appears in the thread as a sent bubble (right/blue)
+* Given the message is sent, when the thread updates, then the new message appears at the bottom and the view auto-scrolls to it
+* Given the guest submits an empty message, when the form is validated, then the send is prevented and a validation error is shown
+* Given the receiver does not exist, when the message is submitted, then a 404 error is returned
+Notes:
+* API: POST /api/t/{slug}/messages — body: { receiverId, propertyId, content }
+* UI: Message input at bottom of message thread within messages page (/t/{slug}/messages)
+* Sprint: 5
+* Dependencies: F5.7 (Thread View)
+________________
+
+
+Story 8 — F5.6: Guest Views Their Conversation List
+As a guest, I want to see a list of all my message conversations, So that I can find and continue previous discussions with hosts.
+Acceptance Criteria:
+* Given a logged-in user navigates to the messages page, when the page loads, then a list of conversations is displayed sorted by most recent message
+* Given the conversation list is shown, when rendered, then each conversation displays: the other user's avatar and name, last message preview (truncated), timestamp, and unread count
+* Given a conversation has unread messages, when it appears in the list, then it is visually highlighted with bold text and a dot indicator
+* Given a conversation is linked to a property, when it appears in the list, then the related property name is shown
+* Given the user has no conversations, when the messages page loads, then an empty state message is displayed
+* Given the user is not authenticated, when they navigate to the messages page, then they are redirected to login
+Notes:
+* API: GET /api/t/{slug}/messages/conversations
+* UI: Conversation list (left panel) on messages page (/t/{slug}/messages)
+* Sprint: 5
+* Dependencies: F5.5 (Send Message)
+________________
+
+
+Story 9 — F5.7: Guest Views a Message Thread
+As a guest, I want to view the full message history in a conversation, So that I can read the complete exchange with a host.
+Acceptance Criteria:
+* Given a user clicks on a conversation in the list, when the thread loads, then all messages are displayed in chat-bubble style: sent messages on the right (blue) and received messages on the left (gray)
+* Given the thread is displayed, when rendered, then each message bubble shows the message text and timestamp
+* Given the thread has a header, when displayed, then it shows the other user's name and avatar
+* Given the thread is opened, when messages load, then the view auto-scrolls to the newest message
+* Given the user is not a participant in the conversation, when they attempt to access the thread, then a 403 error is returned
+* Given a conversation has more than 50 messages, when the thread loads, then messages are paginated (50 per page)
+Notes:
+* API: GET /api/t/{slug}/messages/conversations/:conversationId — query params: page, limit
+* UI: Message thread (right panel) on messages page (/t/{slug}/messages)
+* Sprint: 5
+* Dependencies: F5.6 (Conversations)
+________________
+
+
+Story 10 — F5.7: Entering a Thread Marks Messages as Read
+As a guest, I want messages to be automatically marked as read when I open a conversation, So that my unread count stays accurate without manual action.
+Acceptance Criteria:
+* Given a user opens a conversation with unread messages, when the thread loads, then all messages in the conversation are marked as read via the API
+* Given messages are marked as read, when the user returns to the conversation list, then the unread count for that conversation is updated to zero
+* Given the user is not a participant, when the mark-as-read request is sent, then a 403 error is returned
+Notes:
+* API: PUT /api/t/{slug}/messages/conversations/:conversationId/read
+* UI: Triggered automatically when a conversation thread is opened
+* Sprint: 5
+* Dependencies: F5.7 (Story 9)
+________________
+
+
+Story 11 — F5.7: Mobile Message Thread Navigation
+As a guest on a mobile device, I want to navigate from the conversation list to a full-screen message thread, So that I can read and send messages comfortably on a small screen.
+Acceptance Criteria:
+* Given a user on a mobile viewport (< 768px), when they view the messages page, then the conversation list is shown as the default view
+* Given the user taps a conversation on mobile, when the thread opens, then it navigates to a full-screen thread view (not side panel)
+* Given the user is in the full-screen thread view on mobile, when they tap back, then they return to the conversation list
+Notes:
+* UI: Messages page (/t/{slug}/messages) — mobile breakpoint behavior
+* Sprint: 5
+* Dependencies: F5.6 (Conversations), F5.7 (Thread View)
+________________
+
+
+Story 12 — F5.8: Guest Views Notification Bell with Unread Count
+As a guest, I want to see a notification bell icon in the navigation bar with an unread count badge, So that I am aware of new activity without navigating away from my current page.
+Acceptance Criteria:
+* Given a logged-in user, when the navigation bar renders, then a notification bell icon is displayed
+* Given the user has unread notifications, when the bell icon renders, then a badge displays the unread count
+* Given the user has zero unread notifications, when the bell icon renders, then no badge is displayed (or the badge is hidden)
+* Given the user is not logged in, when the navigation bar renders, then the notification bell is not shown
+Notes:
+* API: GET /api/t/{slug}/notifications — response includes unreadCount
+* UI: Notification bell icon in the navigation bar (all pages)
+* Sprint: 5
+* Dependencies: F1.9 (Navigation Bar)
+________________
+
+
+Story 13 — F5.8: Guest Views the Notifications Page
+As a guest, I want to view a chronological list of all my notifications, So that I can see all activity related to my bookings, reviews, and messages.
+Acceptance Criteria:
+* Given a logged-in user navigates to the notifications page, when the page loads, then notifications are displayed in reverse chronological order
+* Given the notification list is rendered, when each notification is shown, then it displays: type-specific icon, title, message preview, and time ago
+* Given a notification is unread, when rendered, then it has a blue dot indicator and a visually distinct background
+* Given a notification is read, when rendered, then it has no blue dot and a standard background
+* Given the user has more than 20 notifications, when the page loads, then notifications are paginated at 20 per page
+* Given the user has no notifications, when the page loads, then an empty state is displayed
+* Given the user is not authenticated, when they navigate to the notifications page, then they are redirected to login
+* Given notifications exist, when the unreadOnly query parameter is set to true, then only unread notifications are returned
+Notes:
+* API: GET /api/t/{slug}/notifications — query params: unreadOnly, page, limit
+* UI: Notifications page (/t/{slug}/notifications)
+* Sprint: 5
+* Dependencies: None (notifications are generated by other features)
+________________
+
+
+Story 14 — F5.8: Guest Marks a Single Notification as Read by Clicking It
+As a guest, I want to click a notification and be taken to the related entity, So that I can quickly act on the notification and it gets marked as read.
+Acceptance Criteria:
+* Given an unread notification of type BOOKING_REQUEST, when the user clicks it, then the notification is marked as read and the user is navigated to the relevant booking
+* Given an unread notification of type BOOKING_CONFIRMED, when the user clicks it, then the notification is marked as read and the user is navigated to the relevant booking
+* Given an unread notification of type BOOKING_DECLINED, when the user clicks it, then the notification is marked as read and the user is navigated to the relevant booking
+* Given an unread notification of type BOOKING_CANCELLED, when the user clicks it, then the notification is marked as read and the user is navigated to the relevant booking
+* Given an unread notification of type NEW_REVIEW, when the user clicks it, then the notification is marked as read and the user is navigated to the relevant property or review
+* Given an unread notification of type NEW_MESSAGE, when the user clicks it, then the notification is marked as read and the user is navigated to the relevant conversation
+* Given a notification that does not exist, when the user attempts to mark it as read, then a 404 error is returned
+Notes:
+* API: PUT /api/t/{slug}/notifications/:id/read
+* UI: Click handler on each notification row in the notifications page
+* Sprint: 5
+* Dependencies: F5.8 (Story 13)
+________________
+
+
+Story 15 — F5.8: Guest Marks All Notifications as Read
+As a guest, I want to mark all my notifications as read at once, So that I can clear my notification backlog without clicking each one individually.
+Acceptance Criteria:
+* Given a user on the notifications page with unread notifications, when they click the "Mark all as read" button, then all notifications are marked as read
+* Given all notifications are marked as read, when the page re-renders, then no notifications show the unread indicator and the bell badge count resets to zero
+* Given the user has no unread notifications, when the "Mark all as read" button is visible, then clicking it still succeeds (200 response, no-op)
+* Given the user is not authenticated, when the mark-all-as-read request is sent, then a 401 error is returned
+Notes:
+* API: PUT /api/t/{slug}/notifications/read-all
+* UI: "Mark all as read" button at top of notifications page
+* Sprint: 5
+* Dependencies: F5.8 (Story 13)
+________________
+
+
+Story 16 — F5.9: Full Navigation Bar with All Sprint 5 Links and Badges
+As a guest, I want the navigation bar to include links to Messages and Notifications with unread badges, So that I can access all communication features from any page.
+Acceptance Criteria:
+* Given a logged-in user, when the navigation bar renders, then it displays: Logo, Search bar, Wishlists link, Messages link (with unread badge), Notifications bell (with unread badge), and User avatar dropdown
+* Given the user has unread messages, when the Messages link renders, then an unread badge is displayed next to it
+* Given the user has no unread messages, when the Messages link renders, then no badge is shown
+* Given a logged-in user clicks the user dropdown, when the menu opens, then it includes: Profile, My Bookings, Wishlists, Messages, Notifications, My Properties (if host), and Log out
+* Given the user is not a host, when the dropdown renders, then "My Properties" is not shown and "Become a Host" link is available
+* Given the user is not logged in, when the navigation bar renders, then Login/Register links are shown and Messages/Notifications/Wishlists links are hidden
+Notes:
+* UI: Navigation bar component (all pages)
+* Sprint: 5
+* Dependencies: F1.9 (Navigation Bar), F3.1 (Search Bar), F3.5 (Wishlists), F5.6 (Messages), F5.8 (Notifications)
+________________
+
+
+Story 17 — F5.9: Host Dashboard Shows Average Rating from Sprint 5
+As a host, I want my host dashboard to display my average property rating, So that I can monitor guest satisfaction across my listings.
+Acceptance Criteria:
+* Given a host with reviewed properties, when they view the host dashboard, then the summary stats section displays the average rating across all their properties
+* Given a host with no reviews on any property, when they view the host dashboard, then the average rating shows "No reviews yet" or a dash
+Notes:
+* UI: Host dashboard summary stats (/t/{slug}/hosting) — "Average rating" stat
+* Sprint: 5
+* Dependencies: F2.2 (Host Dashboard), F5.3 (Review Display — Property)
+________________
+
+
+Summary
+Sprint 5 Total: 17 stories
+Story
+	Feature
+	Title
+	1
+	F5.1
+	Guest Submits a Review for a Completed Booking
+	2
+	F5.2
+	Host Submits a Review for a Guest After a Completed Booking
+	3
+	F5.3
+	Visitor Views Reviews on a Property Detail Page
+	4
+	F5.3
+	Guest Views Review Summary Statistics for a Property
+	5
+	F5.4
+	Visitor Views Reviews About a User on Their Profile
+	6
+	F5.5
+	Guest Sends a Message to a Host from the Property Detail Page
+	7
+	F5.5
+	Guest Sends a Message Within an Existing Conversation
+	8
+	F5.6
+	Guest Views Their Conversation List
+	9
+	F5.7
+	Guest Views a Message Thread
+	10
+	F5.7
+	Entering a Thread Marks Messages as Read
+	11
+	F5.7
+	Mobile Message Thread Navigation
+	12
+	F5.8
+	Guest Views Notification Bell with Unread Count
+	13
+	F5.8
+	Guest Views the Notifications Page
+	14
+	F5.8
+	Guest Marks a Single Notification as Read by Clicking It
+	15
+	F5.8
+	Guest Marks All Notifications as Read
+	16
+	F5.9
+	Full Navigation Bar with All Sprint 5 Links and Badges
+	17
+	F5.9
+	Host Dashboard Shows Average Rating from Sprint 5
+	Features Split into Multiple Stories
+Feature
+	Stories
+	Reason
+	F5.3 — Review Display (Property)
+	Stories 3, 4
+	Separated review card listing from rating summary statistics
+	F5.5 — Messaging (Send Message)
+	Stories 6, 7
+	Initial contact from property page vs. reply within existing conversation
+	F5.7 — Messaging (Thread View)
+	Stories 9, 10, 11
+	Viewing the thread, auto-marking as read, and mobile navigation behavior
+	F5.8 — Notifications
+	Stories 12, 13, 14, 15
+	Bell badge, notification list page, click-to-navigate-and-read, and mark-all-as-read
+	F5.9 — Navigation Updates (Final)
+	Stories 16, 17
+	Full nav bar update vs. host dashboard average rating stat

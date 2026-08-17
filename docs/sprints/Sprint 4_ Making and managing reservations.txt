@@ -1,0 +1,343 @@
+﻿Sprint 4 — Booking System: User Stories
+Sprint Theme: Making and managing reservations Sprint Goal: Guests can book properties, hosts can manage booking requests. Features Covered: F4.1–F4.9 Total Stories: 17
+________________
+
+
+Story 1 — F4.1: Booking Widget Display
+As a guest, I want to see a booking widget on the property detail page, So that I can select dates and guests and initiate a reservation.
+Acceptance Criteria:
+* Given I am viewing a property detail page, when the page loads, then I see a booking widget displaying the property's price per night
+* Given I am on desktop, when I view the booking widget, then it appears as a right sidebar panel
+* Given I am on mobile, when I view the booking widget, then it appears as a sticky bottom bar
+* Given the booking widget is displayed, when I interact with it, then I see a check-in date picker, a check-out date picker, a guest count selector, and a "Reserve" button
+* Given I have selected valid check-in and check-out dates, when the price breakdown updates, then it shows the calculation as X nights × $Y/night = $Z total
+* Given the booking widget is displayed, when I look below the Reserve button, then I see a note stating "You won't be charged"
+Notes:
+* API: GET /api/t/{slug}/properties/:id (property data), GET /api/t/{slug}/properties/:id/availability (booked dates)
+* UI: Booking widget on property detail page (/t/{slug}/properties/:id)
+* Sprint: 4
+* Dependencies: F1.8 (Property Detail Page)
+________________
+
+
+Story 2 — F4.1: Booking Widget Guest Count Validation
+As a guest, I want the guest count selector to be limited to the property's maximum capacity, So that I cannot request more guests than the property allows.
+Acceptance Criteria:
+* Given a property has max_guests set to 4, when I use the guest count selector, then I cannot select a value greater than 4
+* Given I have not selected a guest count, when the widget loads, then the guest count defaults to 1
+* Given a property has max_guests set to 1, when I use the guest count selector, then the increment button is disabled
+Notes:
+* API: GET /api/t/{slug}/properties/:id (provides max_guests)
+* UI: Guest count selector in booking widget
+* Sprint: 4
+* Dependencies: F4.1 (Booking Widget Display)
+________________
+
+
+Story 3 — F4.2: Availability Calendar Display
+As a visitor, I want to see which dates are unavailable on the property detail page, So that I know which dates are already booked before selecting my stay.
+Acceptance Criteria:
+* Given I am viewing a property detail page, when the availability data loads, then dates that overlap with existing bookings are visually grayed out in the date picker
+* Given there are booked date ranges returned by the API, when I attempt to select a grayed-out date as check-in or check-out, then the date picker prevents the selection
+* Given I change the month in the date picker, when the new month loads, then the availability data is fetched for that month via the month query parameter (YYYY-MM format)
+* Given there are no existing bookings for a month, when I view that month, then all dates are selectable
+Notes:
+* API: GET /api/t/{slug}/properties/:id/availability?month=YYYY-MM
+* UI: Calendar display on property detail page, grayed dates in date picker
+* Sprint: 4
+* Dependencies: F4.1 (Booking Widget Display)
+________________
+
+
+Story 4 — F4.2: Double-Booking Prevention
+As a guest, I want the system to prevent me from booking dates that overlap with existing reservations, So that I don't create a conflicting booking.
+Acceptance Criteria:
+* Given another guest has a confirmed booking for Mar 10–15, when I attempt to book Mar 12–17 on the same property, then the API returns a 409 Conflict status indicating dates are unavailable
+* Given dates conflict with an existing booking, when the booking widget detects unavailability, then it shows a "Not available" message instead of the Reserve button
+* Given I select dates that partially overlap with a booked range, when I submit, then the booking is rejected with a 409 error
+Notes:
+* API: POST /api/t/{slug}/bookings (returns 409 on conflict)
+* UI: "Not available" message in booking widget
+* Sprint: 4
+* Dependencies: F4.2 (Availability Calendar Display)
+________________
+
+
+Story 5 — F4.3: Booking Creation — Successful Reservation
+As a guest, I want to create a booking by selecting dates and number of guests, So that I can reserve a property for my stay.
+Acceptance Criteria:
+* Given I am logged in and viewing a property, when I select valid check-in/check-out dates and guest count then click "Reserve", then a booking is created with status PENDING
+* Given I create a booking for 5 nights at $120/night, when the booking is created, then the totalPrice is calculated as 600.00 (nights × price_per_night)
+* Given I successfully create a booking, when the API responds with 201, then the response contains a booking object with id, propertyId, guestId, checkIn, checkOut, numGuests, totalPrice, status, property summary, and createdAt
+* Given I successfully create a booking, when the booking is confirmed, then I am redirected to the booking detail page
+Notes:
+* API: POST /api/t/{slug}/bookings
+* UI: Booking widget → booking detail page
+* Sprint: 4
+* Dependencies: F4.1 (Booking Widget), F4.2 (Availability Calendar)
+________________
+
+
+Story 6 — F4.3: Booking Creation — Validation Errors
+As a guest, I want to see clear validation errors when my booking input is invalid, So that I can correct my selections before resubmitting.
+Acceptance Criteria:
+* Given I select a check-out date that is before or equal to the check-in date, when I attempt to submit, then I see a 400 validation error indicating check-out must be after check-in
+* Given I select a guest count that exceeds the property's max_guests, when I attempt to submit, then I see a 400 validation error indicating the guest count exceeds the maximum
+* Given I am not logged in, when I attempt to create a booking, then I receive a 401 error indicating authentication is required
+* Given I submit a booking request with missing required fields (propertyId, checkIn, checkOut, numGuests), when the server validates, then I receive a 400 error with details about the missing fields
+Notes:
+* API: POST /api/t/{slug}/bookings (400 for validation, 401 for auth)
+* UI: Inline error display in booking widget
+* Sprint: 4
+* Dependencies: F4.1 (Booking Widget)
+________________
+
+
+Story 7 — F4.3: Booking Creation — Host Notification
+As a host, I want to receive a notification when a guest books one of my properties, So that I can review and respond to the booking request.
+Acceptance Criteria:
+* Given a guest creates a booking on my property, when the booking is saved with status PENDING, then a notification of type BOOKING_REQUEST is created for me
+* Given a BOOKING_REQUEST notification is created, when I view my notifications, then it contains a title, message with the guest's details, and a reference to the booking (referenceType: "booking", referenceId: booking ID)
+Notes:
+* API: POST /api/t/{slug}/bookings triggers notification creation; GET /api/t/{slug}/notifications
+* UI: Notification bell icon, notifications list
+* Sprint: 4
+* Dependencies: F4.3 (Booking Creation)
+________________
+
+
+Story 8 — F4.4: Guest Booking List
+As a guest, I want to view all of my bookings on a "My Bookings" page, So that I can track the status of my reservations.
+Acceptance Criteria:
+* Given I am logged in, when I navigate to /t/{slug}/bookings, then I see a list of all my bookings as a guest
+* Given I have bookings in multiple statuses, when I view the page, then I see tabs for "Upcoming" (PENDING + CONFIRMED), "Completed", and "Cancelled" (CANCELLED + DECLINED)
+* Given I have bookings, when I view a booking card, then it displays the property primary image, property title, dates (formatted as "Mar 10 – Mar 15, 2026"), a status badge (color-coded: PENDING=yellow, CONFIRMED=green, DECLINED=red, CANCELLED=gray, COMPLETED=blue), total price, and number of guests
+* Given I have a booking with status PENDING or CONFIRMED, when I view its card, then I see a "Cancel Booking" action button
+* Given I click on a booking card, when it navigates, then I am taken to the booking detail view
+* Given the booking list supports pagination, when there are more results than the page limit, then I can navigate through pages
+* Given I have no bookings, when I view the page, then I see an appropriate empty state message
+Notes:
+* API: GET /api/t/{slug}/bookings?status=...&page=...&limit=...
+* UI: My Bookings page (/t/{slug}/bookings)
+* Sprint: 4
+* Dependencies: F4.3 (Booking Creation)
+________________
+
+
+Story 9 — F4.5: Guest Booking Detail
+As a guest, I want to view the full details of a specific booking, So that I can see the property summary, dates, guests, pricing, and current status.
+Acceptance Criteria:
+* Given I am logged in and I navigate to a booking detail, when the page loads, then I see the full property info summary and host info
+* Given I view a booking detail, when the data is displayed, then I see the booking dates, number of guests, and a price breakdown
+* Given I view a booking detail, when the status section renders, then I see a visual timeline showing the booking progression (requested → confirmed/declined → completed)
+* Given the booking belongs to another user, when I try to access it, then I receive a 403 error
+* Given the booking ID does not exist, when I try to access it, then I receive a 404 error
+Notes:
+* API: GET /api/t/{slug}/bookings/:id
+* UI: Booking detail view (within bookings page or modal)
+* Sprint: 4
+* Dependencies: F4.4 (Guest Booking List)
+________________
+
+
+Story 10 — F4.6: Booking Cancellation — Guest Cancels
+As a guest, I want to cancel a booking that is in PENDING or CONFIRMED status, So that I can withdraw my reservation if my plans change.
+Acceptance Criteria:
+* Given I have a booking with status PENDING, when I click the "Cancel Booking" button and confirm, then the booking status changes to CANCELLED
+* Given I have a booking with status CONFIRMED, when I click the "Cancel Booking" button and confirm, then the booking status changes to CANCELLED
+* Given I click the "Cancel Booking" button, when the confirmation modal appears, then it asks "Are you sure you want to cancel?" with confirm and dismiss options
+* Given I cancel a booking successfully, when the API responds with 200, then the booking detail reflects the updated CANCELLED status
+Notes:
+* API: PUT /api/t/{slug}/bookings/:id/cancel
+* UI: Cancel button on booking detail page, confirmation modal
+* Sprint: 4
+* Dependencies: F4.5 (Guest Booking Detail)
+________________
+
+
+Story 11 — F4.6: Booking Cancellation — Validation and Restrictions
+As a guest, I want the system to prevent me from cancelling ineligible bookings, So that only valid cancellations are processed.
+Acceptance Criteria:
+* Given I have a booking with status DECLINED, when I attempt to cancel it, then I receive a 400 error indicating the booking cannot be cancelled
+* Given I have a booking with status COMPLETED, when I attempt to cancel it, then I receive a 400 error indicating the booking cannot be cancelled
+* Given I have a booking with status CANCELLED, when I attempt to cancel it again, then I receive a 400 error indicating the booking is already cancelled
+* Given I am not the guest who made the booking, when I attempt to cancel it, then I receive a 403 error indicating I am not authorized
+Notes:
+* API: PUT /api/t/{slug}/bookings/:id/cancel (400 for wrong status, 403 for wrong user)
+* UI: Cancel button should not be visible for ineligible statuses
+* Sprint: 4
+* Dependencies: F4.6 (Booking Cancellation — Guest Cancels)
+________________
+
+
+Story 12 — F4.6: Booking Cancellation — Host Notification
+As a host, I want to receive a notification when a guest cancels a booking on my property, So that I am aware the dates are now available again.
+Acceptance Criteria:
+* Given a guest cancels a booking on my property, when the cancellation is processed, then a notification of type BOOKING_CANCELLED is created for me
+* Given a BOOKING_CANCELLED notification is created, when I view my notifications, then it references the cancelled booking (referenceType: "booking", referenceId: booking ID)
+Notes:
+* API: PUT /api/t/{slug}/bookings/:id/cancel triggers notification; GET /api/t/{slug}/notifications
+* UI: Notification bell icon, notifications list
+* Sprint: 4
+* Dependencies: F4.6 (Booking Cancellation — Guest Cancels)
+________________
+
+
+Story 13 — F4.7: Host Booking Management — Viewing Requests
+As a host, I want to view all booking requests for my properties on a dedicated page, So that I can review and manage incoming reservations.
+Acceptance Criteria:
+* Given I am a host, when I navigate to /t/{slug}/hosting/bookings, then I see a list of bookings for my properties
+* Given I have bookings in multiple statuses, when I view the page, then I see tabs for "Pending", "Confirmed", and "Past"
+* Given I view a booking card, when the data renders, then it displays the guest name, guest avatar, property name, dates, number of guests, total price, and a status badge
+* Given I have no booking requests, when the page loads, then I see an appropriate empty state
+* Given I am not a host (is_host = false), when I attempt to access this page, then I receive a 403 error
+* Given there are many bookings, when I view the list, then it supports filtering by status and propertyId query parameters and pagination
+Notes:
+* API: GET /api/t/{slug}/hosting/bookings?status=...&propertyId=...&page=...&limit=...
+* UI: Host Booking Management page (/t/{slug}/hosting/bookings)
+* Sprint: 4
+* Dependencies: F4.3 (Booking Creation), F2.1 (Become a Host)
+________________
+
+
+Story 14 — F4.7: Host Confirms a Booking
+As a host, I want to confirm a pending booking request, So that the guest's reservation is approved.
+Acceptance Criteria:
+* Given I have a booking with status PENDING on one of my properties, when I click the "Confirm" button, then the booking status changes to CONFIRMED
+* Given I confirm a booking, when the API responds with 200, then the booking detail reflects the updated CONFIRMED status
+* Given I attempt to confirm a booking that is not in PENDING status, when the API responds, then I receive a 400 error indicating the booking is not in PENDING status
+* Given I am not the host of the property, when I attempt to confirm the booking, then I receive a 403 error
+* Given a booking does not exist, when I attempt to confirm it, then I receive a 404 error
+* Given I confirm a booking, when the confirmation is processed, then a notification of type BOOKING_CONFIRMED is created for the guest
+Notes:
+* API: PUT /api/t/{slug}/hosting/bookings/:id/confirm
+* UI: "Confirm" button on pending booking cards in host management page
+* Sprint: 4
+* Dependencies: F4.7 (Host Booking Management — Viewing Requests)
+________________
+
+
+Story 15 — F4.7: Host Declines a Booking
+As a host, I want to decline a pending booking request, So that I can reject reservations I cannot accommodate.
+Acceptance Criteria:
+* Given I have a booking with status PENDING on one of my properties, when I click the "Decline" button, then the booking status changes to DECLINED
+* Given I decline a booking, when the API responds with 200, then the booking detail reflects the updated DECLINED status
+* Given I attempt to decline a booking that is not in PENDING status, when the API responds, then I receive a 400 error indicating the booking is not in PENDING status
+* Given I am not the host of the property, when I attempt to decline the booking, then I receive a 403 error
+* Given a booking does not exist, when I attempt to decline it, then I receive a 404 error
+* Given I decline a booking, when the decline is processed, then a notification of type BOOKING_DECLINED is created for the guest
+Notes:
+* API: PUT /api/t/{slug}/hosting/bookings/:id/decline
+* UI: "Decline" button on pending booking cards in host management page
+* Sprint: 4
+* Dependencies: F4.7 (Host Booking Management — Viewing Requests)
+________________
+
+
+Story 16 — F4.8: Booking Notification Events
+As a guest or host, I want to receive in-app notifications for all booking-related events, So that I stay informed about the status of my reservations.
+Acceptance Criteria:
+* Given a guest creates a booking, when the booking is saved, then the host receives a notification of type BOOKING_REQUEST
+* Given a host confirms a booking, when the action completes, then the guest receives a notification of type BOOKING_CONFIRMED
+* Given a host declines a booking, when the action completes, then the guest receives a notification of type BOOKING_DECLINED
+* Given a guest cancels a booking, when the cancellation completes, then the host receives a notification of type BOOKING_CANCELLED
+* Given a notification is created, when its data is stored, then it includes type, title, message, referenceType ("booking"), referenceId (the booking ID), and is_read defaults to false
+* Given I have unread notifications, when I view the notifications endpoint, then the response includes the unreadCount
+Notes:
+* API: GET /api/t/{slug}/notifications (list), PUT /api/t/{slug}/notifications/:id/read (mark read)
+* UI: Notification bell with unread count badge, notification list
+* Sprint: 4
+* Dependencies: F4.3 (Booking Creation), F4.6 (Booking Cancellation), F4.7 (Host Booking Management)
+________________
+
+
+Story 17 — F4.9: Navigation Updates for Bookings
+As a logged-in user, I want to see booking-related links in the navigation, So that I can quickly access my bookings and booking management pages.
+Acceptance Criteria:
+* Given I am logged in as a guest, when I open the user dropdown menu, then I see a "My Bookings" menu item that navigates to /t/{slug}/bookings
+* Given I am logged in as a host, when I open the user dropdown menu, then I see a "Booking Requests" link that navigates to /t/{slug}/hosting/bookings
+* Given I am logged in but not a host, when I view the user dropdown, then I do not see the "Booking Requests" link
+* Given the tenant's active sprint is less than 4, when I view the navigation, then the "My Bookings" and "Booking Requests" links are not displayed (sprint-gated)
+Notes:
+* API: GET /api/t/{slug}/config (provides activeSprint and user role)
+* UI: Navigation bar — user dropdown menu
+* Sprint: 4
+* Dependencies: F1.9 (Navigation Bar), F2.1 (Become a Host)
+________________
+
+
+Summary
+Sprint 4 Total: 17 stories
+Story
+	Feature
+	Title
+	1
+	F4.1
+	Booking Widget Display
+	2
+	F4.1
+	Booking Widget Guest Count Validation
+	3
+	F4.2
+	Availability Calendar Display
+	4
+	F4.2
+	Double-Booking Prevention
+	5
+	F4.3
+	Booking Creation — Successful Reservation
+	6
+	F4.3
+	Booking Creation — Validation Errors
+	7
+	F4.3
+	Booking Creation — Host Notification
+	8
+	F4.4
+	Guest Booking List
+	9
+	F4.5
+	Guest Booking Detail
+	10
+	F4.6
+	Booking Cancellation — Guest Cancels
+	11
+	F4.6
+	Booking Cancellation — Validation and Restrictions
+	12
+	F4.6
+	Booking Cancellation — Host Notification
+	13
+	F4.7
+	Host Booking Management — Viewing Requests
+	14
+	F4.7
+	Host Confirms a Booking
+	15
+	F4.7
+	Host Declines a Booking
+	16
+	F4.8
+	Booking Notification Events
+	17
+	F4.9
+	Navigation Updates for Bookings
+	Features Split into Multiple Stories
+Feature
+	Stories
+	Reason
+	F4.1 — Booking Widget
+	2 (Stories 1–2)
+	Widget display/layout is separate from guest count validation logic
+	F4.2 — Availability Calendar
+	2 (Stories 3–4)
+	Viewing unavailable dates is distinct from the server-side double-booking prevention
+	F4.3 — Booking Creation
+	3 (Stories 5–7)
+	Happy path, validation errors, and host notification are three distinct interactions
+	F4.6 — Booking Cancellation
+	3 (Stories 10–12)
+	Successful cancellation, status restrictions, and host notification are independent behaviors
+	F4.7 — Host Booking Management
+	3 (Stories 13–15)
+	Viewing the list, confirming, and declining are three separate host actions

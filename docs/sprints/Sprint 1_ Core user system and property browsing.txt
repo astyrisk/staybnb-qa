@@ -1,0 +1,250 @@
+﻿Sprint 1 — Foundation: User Stories
+Sprint Theme: Core user system and property browsing Sprint Goal: Users can register, log in, view their profile, and browse pre-seeded property listings. Features Covered: F1.1–F1.9 Total Stories: 12
+________________
+
+
+Story 1 — F1.1: User Registration
+As a visitor, I want to register an account with my email and personal details, So that I can access authenticated features of the platform.
+Acceptance Criteria:
+* Given I am on the register page (/t/{slug}/register), when I submit valid first name, last name, email, and password (≥8 characters), then my account is created and I am automatically logged in with a JWT token
+* Given I submit a registration form with an email that already exists in this tenant, when the server responds, then I see a 409 error indicating the email is already registered
+* Given I leave any required field blank (first name, last name, email, or password), when I attempt to submit, then inline validation errors are shown for each missing field
+* Given I enter a password shorter than 8 characters, when I attempt to submit, then I see an inline validation error on the password field
+* Given I enter mismatched values in "Password" and "Confirm password," when I attempt to submit, then I see a validation error indicating passwords must match
+* Given I successfully register, when the response is received, then the response contains a user object (id, email, firstName, lastName, isHost, avatarUrl, createdAt) and a token string
+* Given I am on the register page, when I look below the form, then I see a "Already have an account? Log in" link that navigates to /t/{slug}/login
+Notes:
+* API: POST /api/t/{slug}/auth/register
+* UI: Register page (/t/{slug}/register)
+* Sprint: 1
+* Dependencies: None
+________________
+
+
+Story 2 — F1.2: User Login
+As a registered user, I want to log in with my email and password, So that I can access my account and authenticated features.
+Acceptance Criteria:
+* Given I am on the login page (/t/{slug}/login), when I submit a valid email and password, then I am authenticated and receive a JWT token
+* Given I submit an incorrect email or password, when the server responds, then I see an error message indicating invalid credentials (status 401)
+* Given I leave email or password blank, when I attempt to submit, then I see a validation error for the missing field(s) (status 400)
+* Given I successfully log in, when the response is received, then the response contains a user object and a token string matching the same structure as registration
+* Given I am on the login page, when I look below the form, then I see a "Don't have an account? Register" link that navigates to /t/{slug}/register
+Notes:
+* API: POST /api/t/{slug}/auth/login
+* UI: Login page (/t/{slug}/login)
+* Sprint: 1
+* Dependencies: F1.1 (User Registration)
+________________
+
+
+Story 3 — F1.3: User Logout
+As a logged-in user, I want to log out of my account, So that my session is terminated and my account is secured.
+Acceptance Criteria:
+* Given I am logged in, when I select "Log out" from the user dropdown menu, then my JWT token is invalidated / cookie is cleared
+* Given I have logged out, when the logout completes, then I am redirected to the home page (/t/{slug}/)
+* Given I have logged out, when I attempt to access an authenticated endpoint, then I receive a 401 error
+* Given I am not logged in, when I attempt to call the logout endpoint, then I receive a 401 error
+Notes:
+* API: POST /api/t/{slug}/auth/logout
+* UI: "Log out" option in user dropdown menu (Navbar)
+* Sprint: 1
+* Dependencies: F1.2 (User Login), F1.9 (Navigation Bar)
+________________
+
+
+Story 4 — F1.4a: View Own Profile
+As a logged-in user, I want to view my own profile page with full personal details, So that I can see and verify my account information.
+Acceptance Criteria:
+* Given I am logged in, when I navigate to /t/{slug}/profile, then I see my full profile: avatar (large, circular), full name (first + last), member since date, bio, and phone number
+* Given I am logged in, when I view my profile, then I see an "Edit Profile" button that navigates to /t/{slug}/profile/edit
+* Given I am logged in, when I call GET /api/t/{slug}/auth/me, then the response includes my complete user object: id, email, firstName, lastName, phone, bio, avatarUrl, isHost, createdAt
+* Given I am not logged in, when I attempt to call GET /api/t/{slug}/auth/me, then I receive a 401 error
+Notes:
+* API: GET /api/t/{slug}/auth/me
+* UI: Profile page (/t/{slug}/profile)
+* Sprint: 1
+* Dependencies: F1.2 (User Login)
+________________
+
+
+Story 5 — F1.4b: View Another User's Public Profile
+As a user, I want to view another user's public profile, So that I can learn about a host or guest before interacting with them.
+Acceptance Criteria:
+* Given a valid user ID, when I navigate to view that user's profile, then I see only their public information: first name, last initial (e.g., "Jane D."), avatar, bio, isHost status, and member since date
+* Given I am viewing another user's public profile, when I inspect the response from GET /api/t/{slug}/users/:id, then the response does NOT include their email, full last name, or phone number
+* Given I request a user ID that does not exist in this tenant, when the server responds, then I receive a 404 error
+* Given I am not logged in, when I request a public profile, then I can still view the limited public information (auth is optional)
+Notes:
+* API: GET /api/t/{slug}/users/:id
+* UI: Public profile view (accessible via host card on property detail, etc.)
+* Sprint: 1
+* Dependencies: None
+________________
+
+
+Story 6 — F1.5: Edit User Profile
+As a logged-in user, I want to edit my profile information, So that I can keep my personal details up to date.
+Acceptance Criteria:
+* Given I am on the edit profile page (/t/{slug}/profile/edit), when I update my first name, last name, phone, bio, or avatar URL and click "Save Changes," then the changes are persisted and reflected immediately
+* Given I clear the first name or last name field, when I attempt to save, then I see a validation error because first name and last name are required
+* Given I am on the edit profile page, when I click "Cancel," then I am returned to the profile view page without any changes being saved
+* Given I am not logged in, when I attempt to access the edit profile page, then I receive a 401 error
+* Given I save valid changes, when the API responds, then the response contains the updated user object (status 200)
+Notes:
+* API: PUT /api/t/{slug}/users/me
+* UI: Edit profile page (/t/{slug}/profile/edit)
+* Sprint: 1
+* Dependencies: F1.4a (View Own Profile)
+________________
+
+
+Story 7 — F1.6: Home Page
+As a visitor or logged-in user, I want to see a landing page with featured properties, So that I can discover available listings and begin browsing.
+Acceptance Criteria:
+* Given I navigate to /t/{slug}/, when the page loads, then I see a hero section with a large background image and the headline "Find your next stay"
+* Given I am on the home page, when I look below the hero, then I see a category bar — a horizontal, scrollable row of category icons (Apartment, House, Villa, etc.)
+* Given I am on the home page, when I scroll down, then I see a grid of 8–12 featured property cards
+* Given I see a property card, when I inspect it, then it displays: primary image, title, city, price per night (formatted as "$X / night"), and average rating with star icon and review count (e.g., "★ 4.5 (12)")
+* Given the property list is loaded, when the API call GET /api/t/{slug}/properties returns, then only published properties (is_published = true) are shown
+* Given I am on a mobile device, when I view the grid, then the property cards display in a single column; on tablet 2 columns; on desktop 3 columns
+Notes:
+* API: GET /api/t/{slug}/properties (basic listing, no filters in Sprint 1)
+* UI: Home page (/t/{slug}/)
+* Sprint: 1
+* Dependencies: None
+________________
+
+
+Story 8 — F1.7: Property Listing Page
+As a visitor or logged-in user, I want to see all published properties in a browsable grid, So that I can explore the full catalog of listings.
+Acceptance Criteria:
+* Given I navigate to /t/{slug}/properties, when the page loads, then I see all published properties displayed as cards in a responsive grid
+* Given I see property cards on the listing page, when I inspect a card, then it displays: primary image, title, city + country, price per night, and average rating with review count
+* Given I click on a property card, when the click registers, then I am navigated to the property detail page (/t/{slug}/properties/:id)
+* Given I view the page on desktop, when I see the grid, then it displays 3 columns; on tablet 2 columns; on mobile 1 column
+* Given this is Sprint 1, when I view the listing page, then there are no search bars, filters, or sort controls (those are introduced in Sprint 3)
+Notes:
+* API: GET /api/t/{slug}/properties
+* UI: Property listing (/t/{slug}/properties)
+* Sprint: 1
+* Dependencies: None
+________________
+
+
+Story 9 — F1.8a: Property Detail Page — Property Information
+As a visitor or logged-in user, I want to view the full details of a property, So that I can evaluate the listing before deciding to book.
+Acceptance Criteria:
+* Given I navigate to /t/{slug}/properties/:id, when the page loads, then I see the property title (as h1), location ("City, Country"), property type and category (e.g., "Entire place · Apartment"), and a capacity summary ("X guests · Y bedrooms · Z beds · W bathroom(s)")
+* Given I view the property detail page, when I look at the description section, then I see the full description text with "Show more" / "Show less" toggle for long descriptions
+* Given I view the property detail page, when I look at the host section, then I see a host info card with: avatar, host name ("Hosted by {name}"), and member since date
+* Given I view the property detail page, when I look at the amenities section, then I see a grid of amenity icons with labels; if there are more than 8 amenities, a "Show all {N} amenities" button appears
+* Given I view the property detail page, when I inspect the price, then the pricePerNight is displayed as a number (not a string)
+* Given I request a property ID that does not exist, when the server responds, then I receive a 404 error with code PROPERTY_NOT_FOUND
+* Given this is Sprint 1, when I view the property detail page, then there is no booking widget (Sprint 4) and no reviews section (Sprint 5)
+Notes:
+* API: GET /api/t/{slug}/properties/:id
+* UI: Property detail page (/t/{slug}/properties/:id)
+* Sprint: 1
+* Dependencies: None
+________________
+
+
+Story 10 — F1.8b: Property Detail Page — Image Gallery
+As a visitor or logged-in user, I want to view a property's image gallery, So that I can visually evaluate the listing.
+Acceptance Criteria:
+* Given I navigate to a property detail page, when the page loads on desktop, then I see a large primary image accompanied by a grid of up to 4 smaller thumbnail images
+* Given I see a "Show all photos" button, when I click it, then a full-screen gallery modal opens showing all property images
+* Given I am on a mobile device, when the property detail page loads, then the images are displayed as a horizontal carousel with swipe support
+* Given the property has multiple images, when I view the image data, then images are ordered by sortOrder with sortOrder: 0 as the primary/cover image
+Notes:
+* API: Images included in GET /api/t/{slug}/properties/:id response (images array)
+* UI: Image gallery component on property detail page
+* Sprint: 1
+* Dependencies: F1.8a (Property Detail — Information)
+________________
+
+
+Story 11 — F1.9a: Navigation Bar — Authenticated User
+As a logged-in user, I want to see a navigation bar with access to my account options, So that I can quickly navigate to key areas of the application.
+Acceptance Criteria:
+* Given I am logged in, when I view any page, then I see a navigation bar with: the "StayBnB" logo on the left linking to home (/t/{slug}/), and a user avatar dropdown on the right
+* Given I click my avatar/user menu, when the dropdown opens, then I see menu items: Profile, Log out (additional items like My Bookings, Wishlists, Messages appear in later sprints)
+* Given I click "Profile" in the dropdown, when the navigation completes, then I am on my profile page (/t/{slug}/profile)
+* Given I click "Log out" in the dropdown, when the action completes, then I am logged out and redirected to the home page
+* Given I am on a mobile device, when I view the navbar, then a hamburger menu replaces the right section controls
+Notes:
+* UI: Navigation bar component, present on all pages except login/register
+* Sprint: 1
+* Dependencies: F1.2 (User Login), F1.3 (User Logout)
+________________
+
+
+Story 12 — F1.9b: Navigation Bar — Visitor
+As a visitor (not logged in), I want to see a navigation bar with links to log in or register, So that I can access authentication options from any page.
+Acceptance Criteria:
+* Given I am not logged in, when I view any page, then I see a navigation bar with: the "StayBnB" logo on the left linking to home (/t/{slug}/), and Login / Register links on the right
+* Given I click the "Login" link, when the navigation completes, then I am on the login page (/t/{slug}/login)
+* Given I click the "Register" link, when the navigation completes, then I am on the register page (/t/{slug}/register)
+* Given I am not logged in, when I view the navbar, then I do NOT see a user dropdown, profile link, or logout option
+* Given I am on a mobile device, when I view the navbar, then the login/register links are accessible via a hamburger menu
+Notes:
+* UI: Navigation bar component, present on all pages except login/register
+* Sprint: 1
+* Dependencies: None
+________________
+
+
+Summary
+Sprint 1 Total: 12 stories
+#
+	Feature
+	Story Title
+	1
+	F1.1
+	User Registration
+	2
+	F1.2
+	User Login
+	3
+	F1.3
+	User Logout
+	4
+	F1.4a
+	View Own Profile
+	5
+	F1.4b
+	View Another User's Public Profile
+	6
+	F1.5
+	Edit User Profile
+	7
+	F1.6
+	Home Page
+	8
+	F1.7
+	Property Listing Page
+	9
+	F1.8a
+	Property Detail Page — Property Information
+	10
+	F1.8b
+	Property Detail Page — Image Gallery
+	11
+	F1.9a
+	Navigation Bar — Authenticated User
+	12
+	F1.9b
+	Navigation Bar — Visitor
+	Features Split into Multiple Stories
+Feature
+	Stories
+	Reason
+	F1.4 — User Profile View
+	2 stories (4, 5)
+	Viewing your own profile uses a different endpoint (GET /auth/me — full details including email and phone) than viewing another user's profile (GET /users/:id — public info only with last initial). These are distinct interactions with different data contracts and access patterns.
+	F1.8 — Property Detail Page
+	2 stories (9, 10)
+	The core property information (title, description, host card, amenities, pricing) is a distinct concern from the image gallery component (primary image + thumbnails on desktop, carousel on mobile, full-screen modal). The gallery has its own interaction patterns (modal, swipe, ordering) that warrant a separate story.
+	F1.9 — Navigation Bar
+	2 stories (11, 12)
+	The navbar presents two fundamentally different user experiences: authenticated users see an avatar dropdown with profile/logout options, while visitors see login/register links. These are separate user roles with distinct acceptance criteria.

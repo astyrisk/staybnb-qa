@@ -5,7 +5,6 @@ import com.staybnb.config.DriverFactory;
 import com.staybnb.config.TestConfig;
 import com.staybnb.extensions.RetryExtension;
 import com.staybnb.extensions.ScreenshotOnFailureExtension;
-import com.staybnb.locators.Locators;
 import com.staybnb.pages.LoginPage;
 import com.staybnb.pages.LogoutPage;
 import com.staybnb.pages.RegisterPage;

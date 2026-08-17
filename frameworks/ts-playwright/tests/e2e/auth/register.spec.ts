@@ -1,8 +1,6 @@
 import {test, screenshotSelector} from "../../../fixtures";
 import {env} from "../../../support/env";
 import {validUser} from "../../../support/data/users";
-import {Selectors} from "../../../support/data/selectors";
-
 test('successful registration redirects to homepage', async ({pages, registered}) => {
     await pages.registerPage.expectRedirectToHomepage();
 });

@@ -1,7 +1,5 @@
-import { expect, test, screenshotSelector } from "../../../fixtures";
+import { test } from "../../../fixtures";
 import {seededProperty} from 'support/data/properties'
-import { guestAuthFile } from '../../../support/auth-files';
-import {Booking} from 'support/data/bookings';
 
 test.describe("storageState/loggedIn/widget UI", () => {
   test.beforeEach(async ({pages}, testInfo) => {

@@ -1,7 +1,6 @@
 import {BasePage} from "../base.page";
 import {expect, Locator, Page} from "@playwright/test";
 import {env} from "../../support/env";
-import {LoginPage} from "../auth/login.page";
 import {Booking} from "../../support/data/bookings";
 
 import {seededProperty} from '../../support/data/properties';
@@ -91,7 +90,6 @@ export class PropertyDetailsPage extends BasePage {
     async expectPriceBreakdownDisplayed(nightlyRate: number, nights: number) {
         const subtotal = nightlyRate * nights;
         // TODO is it good to do this kind of assertion?
-        console.log(await this.priceBreakdown.textContent());
         await expect(this.priceBreakdown).toContainText(`$${nightlyRate} × ${nights} nights$${subtotal}Total$${subtotal}`);
     }
 
