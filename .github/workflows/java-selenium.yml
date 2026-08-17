@@ -1,0 +1,71 @@
+name: java-selenium
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frameworks/java-selenium/**'
+      - '.github/workflows/java-selenium.yml'
+  pull_request:
+    paths:
+      - 'frameworks/java-selenium/**'
+      - '.github/workflows/java-selenium.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frameworks/java-selenium
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Cache Maven repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('frameworks/java-selenium/pom.xml') }}
+
+      - name: Build and test (headless)
+        env:
+          TEST_BASE_URL: ${{ secrets.TEST_BASE_URL }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_FIRST_NAME: ${{ secrets.TEST_FIRST_NAME }}
+          TEST_LAST_NAME: ${{ secrets.TEST_LAST_NAME }}
+          NON_HOST_TEST_USER_EMAIL: ${{ secrets.NON_HOST_TEST_USER_EMAIL }}
+          NON_HOST_TEST_PASSWORD: ${{ secrets.NON_HOST_TEST_PASSWORD }}
+          TEST_DEFAULT_PROPERTY_ID: ${{ secrets.TEST_DEFAULT_PROPERTY_ID }}
+          TEST_ONE_BOOKED_PROPERTY_ID: ${{ secrets.TEST_ONE_BOOKED_PROPERTY_ID }}
+          TEST_ZERO_BOOKED_PROPERTY_ID: ${{ secrets.TEST_ZERO_BOOKED_PROPERTY_ID }}
+          TEST_TO_BOOK_PROPERTY_ID: ${{ secrets.TEST_TO_BOOK_PROPERTY_ID }}
+          TEST_NOTIFY_BOOK_PROPERTY_ID: ${{ secrets.TEST_NOTIFY_BOOK_PROPERTY_ID }}
+          TEST_PROPERTY_FEW_AMENITIES_ID: ${{ secrets.TEST_PROPERTY_FEW_AMENITIES_ID }}
+          TEST_PROPERTY_NO_AMENITIES_ID: ${{ secrets.TEST_PROPERTY_NO_AMENITIES_ID }}
+          TEST_PROPERTY_SINGLE_GUEST_ID: ${{ secrets.TEST_PROPERTY_SINGLE_GUEST_ID }}
+          TEST_OTHER_USER_ID_1: ${{ secrets.TEST_OTHER_USER_ID_1 }}
+        run: mvn -B clean test -Dheadless=true
+
+      - name: Upload failure screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-selenium-screenshots
+          path: frameworks/java-selenium/target/screenshots/
+          if-no-files-found: ignore
+
+      - name: Publish Allure report
+        if: always()
+        uses: simple-elf/allure-report-action@v1.12
+        with:
+          allure_results: frameworks/java-selenium/target/allure-results
+          gh_pages: allure-java
+          subfolder: java-selenium

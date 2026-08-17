@@ -1,0 +1,45 @@
+name: shared-docs
+
+# Lightweight checks for cross-cutting documentation. Does NOT run any tests.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '*.md'
+      - '.github/workflows/shared-docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '*.md'
+  workflow_dispatch:
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check markdown for obvious TODO/FIXME drift
+        run: |
+          set -e
+          if grep -rnE '\((TODO|FIXME)\)' docs README.md MIGRATION.md AGENTS.md 2>/dev/null; then
+            echo "::warning::Open TODO/FIXME markers found in docs — review"
+          fi
+          echo "Doc scan complete."
+
+      - name: Verify referenced framework paths exist
+        run: |
+          set -e
+          test -f README.md
+          test -f AGENTS.md
+          test -f MIGRATION.md
+          test -d docs/adr
+          test -d docs/sprints
+          # java-selenium must be present after migration
+          test -f frameworks/java-selenium/pom.xml
+          # ts-playwright is now part of the monorepo (see MIGRATION.md)
+          test -f frameworks/ts-playwright/package.json
+          test -f frameworks/ts-playwright/playwright.config.ts
+          test -f frameworks/ts-playwright/.env.example
+          echo "Both frameworks present — coverage matrix rows should be populated."

@@ -1,0 +1,1816 @@
+openapi: 3.0.3
+
+info:
+  title: Staybnb API
+  description: |
+    REST API for the Staybnb platform — an Airbnb-like service for property bookings.
+
+    ## Authentication
+    Protected endpoints require a Bearer JWT token in the `Authorization` header.
+    Obtain a token via `POST /auth/login` or `POST /auth/register`.
+
+    ```
+    Authorization: Bearer <token>
+    ```
+
+    The token is also stored by the browser in `localStorage` under the key `staybnb_token`.
+  version: 1.0.0
+
+servers:
+  - url: "{API_BASE_URL}"
+    description: Target environment (set API_BASE_URL in your .env)
+    variables:
+      API_BASE_URL:
+        default: https://qa-playground.nixdev.co/api/t/{token}
+        description: Base URL including the tenant path segment
+
+tags:
+  - name: auth
+    description: Registration, login, logout, and current-user profile
+  - name: users
+    description: User profiles and host status
+  - name: properties
+    description: Property listings — browse, create, and manage
+  - name: hosting
+    description: Host-facing property and booking management
+  - name: bookings
+    description: Guest-facing booking operations
+  - name: wishlists
+    description: Saved / favourited properties
+  - name: notifications
+    description: In-app notification events
+  - name: categories
+    description: Property category reference data
+  - name: amenities
+    description: Property amenity reference data
+  - name: upload
+    description: Image upload
+  - name: config
+    description: Tenant configuration
+
+paths:
+
+  # ── Auth ──────────────────────────────────────────────────────────────────
+
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Register a new user account
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            example:
+              firstName: Jane
+              lastName: Doe
+              email: jane.doe@example.com
+              password: Password123
+      responses:
+        "201":
+          description: Registration successful — returns user object and JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSuccess"
+        "400":
+          description: Validation error (missing field, weak password, invalid email)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missingField:
+                  value: { error: { code: VALIDATION_ERROR, message: firstName is required } }
+                weakPassword:
+                  value: { error: { code: VALIDATION_ERROR, message: Password must be at least 8 characters } }
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: { code: DUPLICATE, message: An account with this email already exists }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Log in with email and password
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              email: host@example.com
+              password: Password123
+      responses:
+        "200":
+          description: Login successful — returns user object and JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSuccess"
+        "400":
+          description: Validation error (empty email or password)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: { code: VALIDATION_ERROR, message: email and password are required }
+        "401":
+          description: Wrong password or unknown email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: { code: INVALID_CREDENTIALS, message: Invalid email or password }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Invalidate the current session token
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logged out successfully
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Get the authenticated user's full profile
+      operationId: getMe
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Full user object (includes email, phone, bio)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserFull"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Users ─────────────────────────────────────────────────────────────────
+
+  /users/me:
+    put:
+      tags: [users]
+      summary: Update the authenticated user's profile
+      operationId: updateMe
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Updated user object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserFull"
+        "400":
+          description: Validation error (e.g. firstName or lastName empty)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/me/host:
+    put:
+      tags: [users]
+      summary: Enable hosting on the authenticated user's account
+      operationId: becomeHost
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [isHost]
+              properties:
+                isHost:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: User updated with isHost true
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserFull"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{userId}:
+    get:
+      tags: [users]
+      summary: Get another user's public profile
+      operationId: getPublicUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 7
+      responses:
+        "200":
+          description: Public user info (first name, last initial, avatar, bio, isHost, createdAt — no email, full last name, or phone)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPublic"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Properties ────────────────────────────────────────────────────────────
+
+  /properties:
+    get:
+      tags: [properties]
+      summary: List published properties (with optional search, filters, sort, and pagination)
+      operationId: listProperties
+      parameters:
+        - name: city
+          in: query
+          schema: { type: string }
+          example: Budapest
+        - name: checkIn
+          in: query
+          schema: { type: string, format: date }
+          example: "2026-07-01"
+        - name: checkOut
+          in: query
+          schema: { type: string, format: date }
+          example: "2026-07-07"
+        - name: guests
+          in: query
+          schema: { type: integer, minimum: 1 }
+          example: 2
+        - name: minPrice
+          in: query
+          schema: { type: number }
+          example: 50
+        - name: maxPrice
+          in: query
+          schema: { type: number }
+          example: 200
+        - name: categoryId
+          in: query
+          schema: { type: integer }
+          example: 3
+        - name: amenities
+          in: query
+          description: Comma-separated amenity IDs
+          schema: { type: string }
+          example: "1,4,7"
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, price_asc, price_desc, rating_desc]
+          example: price_asc
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Paginated list of published property summaries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertyListResponse"
+
+  /properties/{propertyId}:
+    get:
+      tags: [properties]
+      summary: Get full property details
+      operationId: getProperty
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          schema: { type: integer }
+          example: 1322
+      responses:
+        "200":
+          description: Full property object including images and amenities
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertyDetail"
+        "404":
+          description: Property not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: { code: PROPERTY_NOT_FOUND, message: Property not found }
+
+    put:
+      tags: [properties]
+      summary: Update a property (owner only)
+      operationId: updateProperty
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          schema: { type: integer }
+          example: 1322
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePropertyRequest"
+      responses:
+        "200":
+          description: Updated property object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertyDetail"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Caller is not the property owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Property not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      tags: [properties]
+      summary: Delete a property and its images/amenities (owner only)
+      operationId: deleteProperty
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          schema: { type: integer }
+          example: 1322
+      responses:
+        "200":
+          description: Property deleted
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Caller is not the property owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Property not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /properties/{propertyId}/publish:
+    put:
+      tags: [properties]
+      summary: Toggle a property's published status (owner only)
+      operationId: publishProperty
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          schema: { type: integer }
+          example: 1322
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [isPublished]
+              properties:
+                isPublished:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: Property with updated isPublished value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertyDetail"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Caller is not the property owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Property not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /properties/{propertyId}/availability:
+    get:
+      tags: [properties]
+      summary: Get booked date ranges for a property
+      operationId: getPropertyAvailability
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          schema: { type: integer }
+          example: 1322
+        - name: month
+          in: query
+          description: Month to query in YYYY-MM format
+          schema: { type: string }
+          example: "2026-07"
+      responses:
+        "200":
+          description: List of booked date ranges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityResponse"
+        "404":
+          description: Property not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Hosting ───────────────────────────────────────────────────────────────
+
+  /hosting/properties:
+    get:
+      tags: [hosting]
+      summary: List all properties owned by the authenticated host (includes drafts)
+      operationId: listHostProperties
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All host properties (published and draft)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HostPropertySummary"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: User is not a host
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      tags: [hosting]
+      summary: Create a new property listing (host only); saved as draft (isPublished false)
+      operationId: createProperty
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePropertyRequest"
+      responses:
+        "201":
+          description: Property created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertyDetail"
+        "400":
+          description: Validation error (missing required field)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: User is not a host
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /hosting/bookings:
+    get:
+      tags: [hosting]
+      summary: List bookings for the host's properties
+      operationId: listHostBookings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/BookingStatus"
+          example: PENDING
+        - name: propertyId
+          in: query
+          schema: { type: integer }
+          example: 1322
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Paginated list of bookings across host properties
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostBookingListResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: User is not a host
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /hosting/bookings/{bookingId}/confirm:
+    put:
+      tags: [hosting]
+      summary: Confirm a pending booking request (host only)
+      operationId: confirmBooking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema: { type: integer }
+          example: 42
+      responses:
+        "200":
+          description: Booking confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusUpdateResponse"
+              example: { message: Booking confirmed successfully, status: CONFIRMED }
+        "400":
+          description: Booking is not in PENDING status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Caller is not the host of this property
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /hosting/bookings/{bookingId}/decline:
+    put:
+      tags: [hosting]
+      summary: Decline a pending booking request (host only)
+      operationId: declineBooking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema: { type: integer }
+          example: 42
+      responses:
+        "200":
+          description: Booking declined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusUpdateResponse"
+              example: { message: Booking declined successfully, status: DECLINED }
+        "400":
+          description: Booking is not in PENDING status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Caller is not the host of this property
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Bookings ──────────────────────────────────────────────────────────────
+
+  /bookings:
+    post:
+      tags: [bookings]
+      summary: Create a booking request
+      operationId: createBooking
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookingRequest"
+            example:
+              propertyId: 1322
+              checkIn: "2026-06-16"
+              checkOut: "2026-06-19"
+              numGuests: 2
+      responses:
+        "201":
+          description: Booking created with status PENDING
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          description: Validation error (invalid dates, guests exceeds max_guests, missing field)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Date range conflicts with an existing booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      tags: [bookings]
+      summary: List the authenticated guest's bookings
+      operationId: listBookings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/BookingStatus"
+          example: PENDING
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Paginated list of bookings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingListResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /bookings/{bookingId}:
+    get:
+      tags: [bookings]
+      summary: Get a booking by ID (guest or host of that property)
+      operationId: getBooking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema: { type: integer }
+          example: 42
+      responses:
+        "200":
+          description: Full booking detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingListItem"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Booking belongs to another user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /bookings/{bookingId}/cancel:
+    put:
+      tags: [bookings]
+      summary: Cancel a booking (guest only; status must be PENDING or CONFIRMED)
+      operationId: cancelBooking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema: { type: integer }
+          example: 42
+      responses:
+        "200":
+          description: Booking cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusUpdateResponse"
+              example: { message: Booking cancelled successfully, status: CANCELLED }
+        "400":
+          description: Booking is in a terminal state (DECLINED, COMPLETED, or already CANCELLED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                alreadyCancelled:
+                  value: { error: { code: INVALID_STATE, message: Booking is already cancelled } }
+                declined:
+                  value: { error: { code: INVALID_STATE, message: Declined bookings cannot be cancelled } }
+                completed:
+                  value: { error: { code: INVALID_STATE, message: Completed bookings cannot be cancelled } }
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Caller is not the guest who made this booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: { code: FORBIDDEN, message: You are not authorised to cancel this booking }
+
+  # ── Wishlists ─────────────────────────────────────────────────────────────
+
+  /wishlists:
+    get:
+      tags: [wishlists]
+      summary: List the authenticated user's wishlisted properties
+      operationId: listWishlists
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Array of wishlisted property summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PropertySummary"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      tags: [wishlists]
+      summary: Add a property to the user's wishlist
+      operationId: addWishlist
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [propertyId]
+              properties:
+                propertyId:
+                  type: integer
+                  example: 1322
+      responses:
+        "201":
+          description: Property added to wishlist
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Property not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Property already in wishlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /wishlists/{propertyId}:
+    delete:
+      tags: [wishlists]
+      summary: Remove a property from the user's wishlist
+      operationId: removeWishlist
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          schema: { type: integer }
+          example: 1322
+      responses:
+        "200":
+          description: Property removed from wishlist
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Property not in wishlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Notifications ─────────────────────────────────────────────────────────
+
+  /notifications:
+    get:
+      tags: [notifications]
+      summary: List in-app notifications for the authenticated user
+      operationId: listNotifications
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Notifications list with unread count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationsResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /notifications/{notificationId}/read:
+    put:
+      tags: [notifications]
+      summary: Mark a notification as read
+      operationId: markNotificationRead
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema: { type: integer }
+          example: 15
+      responses:
+        "200":
+          description: Notification marked as read
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Categories ────────────────────────────────────────────────────────────
+
+  /categories:
+    get:
+      tags: [categories]
+      summary: List all property categories
+      operationId: listCategories
+      responses:
+        "200":
+          description: Array of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+
+  # ── Amenities ─────────────────────────────────────────────────────────────
+
+  /amenities:
+    get:
+      tags: [amenities]
+      summary: List all available amenities grouped by type
+      operationId: listAmenities
+      responses:
+        "200":
+          description: Array of amenities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Amenity"
+
+  # ── Upload ────────────────────────────────────────────────────────────────
+
+  /upload:
+    post:
+      tags: [upload]
+      summary: Upload a property image (JPEG, PNG, or WebP; max 10 per property)
+      operationId: uploadImage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Upload successful — returns the image URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                    example: /uploads/t/abc/abc123.jpg
+        "400":
+          description: No file provided or unsupported format (non-JPEG/PNG/WebP)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Config ────────────────────────────────────────────────────────────────
+
+  /config:
+    get:
+      tags: [config]
+      summary: Get tenant configuration including active sprint
+      operationId: getConfig
+      responses:
+        "200":
+          description: Tenant config object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantConfig"
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT obtained from /auth/login or /auth/register
+
+  schemas:
+
+    # ── Auth requests ──────────────────────────────────────────────────────
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: host@example.com
+        password:
+          type: string
+          format: password
+          example: Password123
+
+    RegisterRequest:
+      type: object
+      required: [firstName, lastName, email, password]
+      properties:
+        firstName:
+          type: string
+          example: Jane
+        lastName:
+          type: string
+          example: Doe
+        email:
+          type: string
+          format: email
+          example: jane.doe@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: Password123
+
+    # ── User models ────────────────────────────────────────────────────────
+
+    AuthUser:
+      type: object
+      description: User object returned by login / register
+      properties:
+        id:
+          type: integer
+          example: 7
+        email:
+          type: string
+          format: email
+          example: host@example.com
+        firstName:
+          type: string
+          example: Jane
+        lastName:
+          type: string
+          example: Doe
+        isHost:
+          type: boolean
+          example: true
+        avatarUrl:
+          type: string
+          nullable: true
+          example: "https://cdn.staybnb.com/avatars/7.jpg"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-01-15T10:30:00Z"
+
+    UserFull:
+      allOf:
+        - $ref: "#/components/schemas/AuthUser"
+        - type: object
+          properties:
+            phone:
+              type: string
+              nullable: true
+              example: "+36 1 234 5678"
+            bio:
+              type: string
+              nullable: true
+              example: "I love hosting travellers."
+
+    UserPublic:
+      type: object
+      description: Publicly visible profile (no email, full last name, or phone)
+      properties:
+        id:
+          type: integer
+          example: 7
+        firstName:
+          type: string
+          example: Jane
+        lastInitial:
+          type: string
+          example: "D."
+        avatarUrl:
+          type: string
+          nullable: true
+          example: "https://cdn.staybnb.com/avatars/7.jpg"
+        bio:
+          type: string
+          nullable: true
+          example: "I love hosting travellers."
+        isHost:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-01-15T10:30:00Z"
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          example: Jane
+        lastName:
+          type: string
+          example: Doe
+        phone:
+          type: string
+          example: "+36 1 234 5678"
+        bio:
+          type: string
+          example: "I love hosting travellers."
+        avatarUrl:
+          type: string
+          format: uri
+          example: "https://cdn.staybnb.com/avatars/7.jpg"
+
+    AuthSuccess:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/AuthUser"
+        token:
+          type: string
+          description: JWT for use in Authorization header
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    # ── Property models ────────────────────────────────────────────────────
+
+    PropertyImage:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        url:
+          type: string
+          format: uri
+          example: "https://cdn.staybnb.com/properties/1322/main.jpg"
+        sortOrder:
+          type: integer
+          description: 0 is the primary/cover image
+          example: 0
+
+    PropertySummary:
+      type: object
+      description: Compact property card data
+      properties:
+        id:
+          type: integer
+          example: 1322
+        title:
+          type: string
+          example: Beautiful Apartment in Budapest
+        city:
+          type: string
+          example: Budapest
+        country:
+          type: string
+          example: Hungary
+        pricePerNight:
+          type: number
+          example: 100.00
+        averageRating:
+          type: number
+          nullable: true
+          example: 4.5
+        reviewCount:
+          type: integer
+          example: 12
+        primaryImage:
+          type: string
+          format: uri
+          nullable: true
+          example: "https://cdn.staybnb.com/properties/1322/main.jpg"
+        category:
+          $ref: "#/components/schemas/Category"
+
+    PropertyDetail:
+      allOf:
+        - $ref: "#/components/schemas/PropertySummary"
+        - type: object
+          properties:
+            description:
+              type: string
+              example: "Spacious apartment in the city centre."
+            propertyType:
+              type: string
+              enum: [Entire place, Private room, Shared room]
+              example: Entire place
+            maxGuests:
+              type: integer
+              example: 4
+            bedrooms:
+              type: integer
+              example: 2
+            beds:
+              type: integer
+              example: 3
+            bathrooms:
+              type: number
+              example: 1.5
+            street:
+              type: string
+              nullable: true
+              example: "Andrássy út 1"
+            isPublished:
+              type: boolean
+              example: true
+            hostId:
+              type: integer
+              example: 3
+            host:
+              $ref: "#/components/schemas/UserPublic"
+            images:
+              type: array
+              items:
+                $ref: "#/components/schemas/PropertyImage"
+            amenities:
+              type: array
+              items:
+                $ref: "#/components/schemas/Amenity"
+            createdAt:
+              type: string
+              format: date-time
+              example: "2026-01-20T08:00:00Z"
+
+    HostPropertySummary:
+      allOf:
+        - $ref: "#/components/schemas/PropertySummary"
+        - type: object
+          properties:
+            isPublished:
+              type: boolean
+              example: false
+
+    CreatePropertyRequest:
+      type: object
+      required: [title, description, propertyType, categoryId, city, country, maxGuests, beds, pricePerNight, images]
+      properties:
+        title:
+          type: string
+          example: Beautiful Apartment in Budapest
+        description:
+          type: string
+          example: "Spacious apartment in the city centre."
+        propertyType:
+          type: string
+          enum: [Entire place, Private room, Shared room]
+          example: Entire place
+        categoryId:
+          type: integer
+          example: 3
+        city:
+          type: string
+          example: Budapest
+        country:
+          type: string
+          example: Hungary
+        street:
+          type: string
+          example: "Andrássy út 1"
+        maxGuests:
+          type: integer
+          minimum: 1
+          example: 4
+        bedrooms:
+          type: integer
+          minimum: 0
+          example: 2
+        beds:
+          type: integer
+          minimum: 1
+          example: 3
+        bathrooms:
+          type: number
+          minimum: 0
+          example: 1.5
+        pricePerNight:
+          type: number
+          minimum: 0.01
+          example: 100.00
+        amenityIds:
+          type: array
+          items:
+            type: integer
+          example: [1, 4, 7]
+        images:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [url, sortOrder]
+            properties:
+              url:
+                type: string
+                format: uri
+                example: "https://cdn.staybnb.com/properties/1322/main.jpg"
+              sortOrder:
+                type: integer
+                example: 0
+
+    UpdatePropertyRequest:
+      type: object
+      description: All fields optional — only provided fields are updated
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        propertyType:
+          type: string
+          enum: [Entire place, Private room, Shared room]
+        categoryId:
+          type: integer
+        city:
+          type: string
+        country:
+          type: string
+        street:
+          type: string
+        maxGuests:
+          type: integer
+          minimum: 1
+        bedrooms:
+          type: integer
+          minimum: 0
+        beds:
+          type: integer
+          minimum: 1
+        bathrooms:
+          type: number
+          minimum: 0
+        pricePerNight:
+          type: number
+          minimum: 0.01
+        amenityIds:
+          type: array
+          items:
+            type: integer
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                format: uri
+              sortOrder:
+                type: integer
+
+    PropertyListResponse:
+      type: object
+      properties:
+        properties:
+          type: array
+          items:
+            $ref: "#/components/schemas/PropertySummary"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    AvailabilityResponse:
+      type: object
+      properties:
+        bookedRanges:
+          type: array
+          items:
+            type: object
+            properties:
+              checkIn:
+                type: string
+                format: date
+                example: "2026-07-10"
+              checkOut:
+                type: string
+                format: date
+                example: "2026-07-15"
+
+    # ── Booking models ─────────────────────────────────────────────────────
+
+    BookingStatus:
+      type: string
+      enum: [PENDING, CONFIRMED, CANCELLED, DECLINED, COMPLETED]
+      example: PENDING
+
+    CreateBookingRequest:
+      type: object
+      required: [propertyId, checkIn, checkOut, numGuests]
+      properties:
+        propertyId:
+          type: integer
+          example: 1322
+        checkIn:
+          type: string
+          format: date
+          example: "2026-06-16"
+        checkOut:
+          type: string
+          format: date
+          example: "2026-06-19"
+        numGuests:
+          type: integer
+          minimum: 1
+          example: 2
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        tenant_id:
+          type: integer
+          example: 7
+        property_id:
+          type: integer
+          example: 1322
+        guest_id:
+          type: integer
+          example: 7
+        check_in:
+          type: string
+          format: date
+          example: "2026-06-16"
+        check_out:
+          type: string
+          format: date
+          example: "2026-06-19"
+        num_guests:
+          type: integer
+          example: 2
+        total_price:
+          type: number
+          format: float
+          example: 300.00
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T12:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T12:00:00Z"
+        property_title:
+          type: string
+          example: Beautiful Apartment in Budapest
+        property_city:
+          type: string
+          example: Budapest
+        property_country:
+          type: string
+          example: Hungary
+
+    BookingListItem:
+      allOf:
+        - $ref: "#/components/schemas/Booking"
+        - type: object
+          properties:
+            price_per_night:
+              type: number
+              format: float
+              example: 100.00
+            property_image:
+              type: string
+              format: uri
+              nullable: true
+              example: "https://cdn.staybnb.com/properties/1322/main.jpg"
+            host_id:
+              type: integer
+              example: 3
+            host_first_name:
+              type: string
+              example: John
+            host_last_name:
+              type: string
+              example: Smith
+            host_avatar:
+              type: string
+              nullable: true
+              example: "https://cdn.staybnb.com/avatars/3.jpg"
+
+    HostBookingListItem:
+      allOf:
+        - $ref: "#/components/schemas/Booking"
+        - type: object
+          properties:
+            price_per_night:
+              type: number
+              format: float
+              example: 100.00
+            property_image:
+              type: string
+              format: uri
+              nullable: true
+            guest_first_name:
+              type: string
+              example: Jane
+            guest_last_name:
+              type: string
+              example: Doe
+            guest_avatar:
+              type: string
+              nullable: true
+
+    BookingListResponse:
+      type: object
+      properties:
+        bookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/BookingListItem"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    HostBookingListResponse:
+      type: object
+      properties:
+        bookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/HostBookingListItem"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    StatusUpdateResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Booking cancelled successfully
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+
+    # ── Reference data ─────────────────────────────────────────────────────
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 3
+        name:
+          type: string
+          example: Apartment
+        icon:
+          type: string
+          example: "🏢"
+
+    Amenity:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Wi-Fi
+        icon:
+          type: string
+          example: "📶"
+        type:
+          type: string
+          enum: [Essentials, Features, Safety]
+          example: Essentials
+
+    # ── Notifications ──────────────────────────────────────────────────────
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 15
+        type:
+          type: string
+          enum: [BOOKING_REQUEST, BOOKING_CONFIRMED, BOOKING_DECLINED, BOOKING_CANCELLED]
+          example: BOOKING_REQUEST
+        title:
+          type: string
+          example: New booking request
+        message:
+          type: string
+          example: "Jane D. requested Mar 10–15."
+        reference_type:
+          type: string
+          example: booking
+        reference_id:
+          type: integer
+          example: 42
+        is_read:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T12:00:00Z"
+
+    NotificationsResponse:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+        unreadCount:
+          type: integer
+          example: 3
+
+    # ── Pagination & Config ────────────────────────────────────────────────
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 5
+        totalPages:
+          type: integer
+          example: 1
+
+    TenantConfig:
+      type: object
+      properties:
+        activeSprint:
+          type: integer
+          example: 4
+        slug:
+          type: string
+          example: demo
+
+    # ── Error envelope ─────────────────────────────────────────────────────
+
+    ErrorDetail:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum:
+            - VALIDATION_ERROR
+            - INVALID_CREDENTIALS
+            - DUPLICATE
+            - INVALID_STATE
+            - FORBIDDEN
+            - UNAUTHORIZED
+            - PROPERTY_NOT_FOUND
+            - NOT_FOUND
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: email and password are required
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorDetail"

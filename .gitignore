@@ -1,0 +1,69 @@
+# ─── OS / Editor ───────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+.factorypath
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code (keep shared workspace settings)
+.vscode/*
+!.vscode/settings.json
+
+# Claude / opencode agent runtime caches
+.claude/
+
+# ─── Java / Maven ─────────────────────────────────────────────
+target/
+*.class
+*.jar
+*.war
+dependency-reduced-pom.xml
+.mvn/wrapper/maven-wrapper.jar
+hs_err_pid*
+
+# ─── Node / TypeScript ─────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+build/
+out/
+.cache/
+.parcel-cache/
+*.tsbuildinfo
+
+# Playwright
+playwright-report/
+playwright/.cache/
+test-results/
+blob-report/
+playwright/.auth-*.json
+# Runtime auth storage states (host.json, guest.json) — keep dir skeleton via .gitkeep
+playwright/.auth/*
+!playwright/.auth/.gitkeep
+
+# ─── Allure & test reports ────────────────────────────────────
+.allure/
+allure-results/
+allure-report/
+Test Results - *.html
+
+# ─── Runtime artifacts (failure screenshots, traces) ──────────
+**/screenshots/failure-*.png
+
+# ─── Secrets / environment ────────────────────────────────────
+.env
+.env.local
+.env.*.local
+!.env.example
